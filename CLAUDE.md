@@ -1,4 +1,4 @@
-# WaterfallTerm — Codebase Instructions
+# fluxtty — Codebase Instructions
 
 ## What This Is
 
@@ -15,105 +15,130 @@ What runs inside each shell is entirely the programmer's choice.
 
 ### 1. Terminal area is primary, everything else is overlay
 - Terminals fill 100% of screen by default
-- Session Sidebar (Ctrl+B) is hidden by default
-- Global Input Bar is always visible at the bottom
+- Session Sidebar (Ctrl+B or `b` in Normal mode) is hidden by default
+- Input Bar is always visible at the bottom
 - When sidebar toggled, it compresses terminal space — never owns it permanently
 
 ### 2. Waterfall layout
-- Each terminal row height = visible viewport height (minus chrome)
-- One scroll page = one terminal row
+- Row height adapts: when few rows, divide height equally; when many rows, each row = full viewport height (waterfall paging)
+- Threshold: rows below `28px header + 18 lines × font-line-height` collapse into waterfall scroll mode
 - Rows stack downward; horizontal splits live within a row
 - Row height recalculates on viewport resize and on sidebar toggle
 
 ### 3. Session identity is first-class
-Every pane has: `name`, `group`, `status` (idle/running/error), `cwd`
-- Default name: `shell-N` — user should be encouraged to name sessions
+Every pane has: `name`, `group`, `note`, `status` (idle/running/error), `cwd`
+- Default name auto-derived from `cwd` on spawn; updates when `cwd` changes
+- On significant commands (claude, vim, psql, etc.) name updates to reflect what's running
+- User-renamed panes are pinned and not auto-renamed
 - Groups are free-form strings (e.g. `proj-alpha`, `infra`)
 - Status drives sidebar indicators and AI context
 
 ### 4. Modal Input Bar — the primary interaction surface
 
-The Global Input Bar sits at the bottom of the screen, always visible.
-It operates in four modes, modeled after vim's modal philosophy.
+The Input Bar sits at the bottom of the screen, always visible.
+It operates in four modes modeled after Vim's modal philosophy.
 
 #### Modes
 
 | Mode | Input Bar Shows | Keystrokes Go To |
 |---|---|---|
-| **AI Mode** | `AI ❯` | Workspace AI (LLM or intent parser) |
-| **Pane Direct Mode** | `[pane-name] ❯` | Active pane's shell stdin |
-| **Pane Selector** | `/` + fuzzy query | Pane list filter (transient overlay) |
-| **Agent Mode** | `[claude] ❯` (or `[codex] ❯`) | Active agent's stdin + agent slash completions |
+| **Normal** | `NORMAL` indicator, read-only hint | Workspace navigation (hjkl, gg/G, scroll) |
+| **Insert** | `INSERT [row/total] [agent]` + pane prompt | Active pane's shell stdin |
+| **Terminal** | `TERMINAL [pane-name]` | Active pane's xterm (raw keyboard, xterm owns input) |
+| **Pane Selector** | `FIND /` + fuzzy query | Pane list filter overlay |
 
 #### Mode Transitions
 
 ```
-AI Mode ──/──────────────────→ Pane Selector (overlay)
-            ──<toggle-key>──→ Pane Direct Mode (focuses active pane)
-            ──Enter──────────→ Workspace AI processes input
+Normal  ──i or a──────────────→ Insert (line editor → PTY)
+        ──/───────────────────→ Pane Selector overlay
+        ──: ──────────────────→ Inline command (workspace AI / Workspace commands)
+        ──hjkl/arrows─────────→ Navigate rows/panes (no mode change)
 
-Pane Direct Mode ──<toggle-key>──→ AI Mode
-                 (auto-activates Agent Mode if agent detected in pane)
+Insert  ──Esc─────────────────→ Normal
+        ──Ctrl+\──────────────→ Terminal (xterm takes raw keyboard)
+        ──Enter───────────────→ Submit line to active PTY
+        ──Tab─────────────────→ Shell/agent autocomplete
 
-Pane Selector ──Enter (select)──→ AI Mode (new active pane, waterfall scrolls to it)
-              ──ESC────────────→ AI Mode (no change)
+Terminal ──Ctrl+\─────────────→ Normal
+         (all other keys go to xterm; only Ctrl+\ is intercepted)
 
-Agent Mode ──<toggle-key>──→ AI Mode
-           (sub-state of Pane Direct; auto-enters when agent pane is active)
+Pane Selector ──Enter─────────→ Normal (new active pane, waterfall scrolls to it)
+              ──Esc────────────→ Normal (no change)
 ```
 
-**Toggle key:** `Ctrl+Space` (default, configurable). This single key:
-- From AI Mode → enters Pane Direct Mode on the current active pane
-- From Pane Direct / Agent Mode → returns to AI Mode
+#### Normal Mode Navigation (vi-style)
+- `h`/`←` `l`/`→` — focus prev/next pane in current row
+- `j`/`↓` `k`/`↑` — focus next/prev row
+- `w` / `W` — focus next/prev pane (alias)
+- `G` — scroll active pane to bottom
+- `gg` (double) — scroll active pane to top
+- `Ctrl+D` / `Ctrl+U` — scroll half-page down/up
+- `Ctrl+F` / `Ctrl+B` — scroll full page down/up
+- `n` — new terminal
+- `s` — split current row
+- `q` — close active pane
+- `b` — toggle sidebar
+- `r` — rename active pane
+- `m` — open pane note editor
+
+#### Inline Command (`:` in Normal mode)
+- Pressing `:` activates a command sub-state in Normal mode
+- Input bar prompt changes to `:` — user types a workspace AI command
+- `Enter` submits to workspace AI; `Esc` cancels and returns to navigation
+
+#### Insert Mode
+- All keystrokes forwarded to the active pane's PTY
+- `live_typing: true` in config — each keystroke sent immediately (including backspace, arrows, Ctrl combos)
+- `live_typing: false` (default) — buffered mode; Enter submits the whole line
+- ArrowUp/Down browse local command history (buffered mode)
+- Tab triggers shell completion (file/command) or agent slash-command completion if agent detected
+- Ctrl+C sends SIGINT; Ctrl+D sends EOF
 
 #### Pane Selector (`/`)
-- Triggered by `/` in AI Mode
-- Fuzzy search over all panes: matches name, group, cwd, running command
-- Shows: pane name · group badge · status dot · cwd
-- Selecting a pane scrolls the waterfall to it and makes it the active pane
-- After selection, mode returns to AI Mode with the new pane active
-- `/` is also available inside AI Mode when typing a command (e.g. `run tests in /` → opens selector mid-sentence)
+- Triggered by `/` in Normal mode
+- Fuzzy search over all panes: matches name, group, cwd, status
+- Shows: pane name · group · status · cwd
+- Arrow keys or Ctrl+J/K to navigate; Enter to select; Esc to cancel
+- Selection scrolls waterfall to the pane and makes it active
 
-#### Pane Direct Mode
-- All keystrokes (including ESC, arrow keys, etc.) go directly to the active pane's PTY
-- The toggle key (`Ctrl+Space`) is the only key intercepted by the workspace
-- The pane header brightens to indicate direct mode is active
+#### Terminal Mode (Ctrl+\)
+- xterm.js owns the keyboard completely
+- `Ctrl+\` is the only intercepted key (returns to Normal)
+- Pane header brightens to indicate terminal mode
 
-#### Agent Mode (auto-detected sub-state of Pane Direct)
-- Activated automatically when the active pane is detected as running an AI agent
-  (claude, codex, aider, etc. — detected via PTY output heuristics)
-- Input bar autocomplete shows that agent's native slash commands
-  (e.g. `/bash`, `/tools`, `/clear` for claude; `/diff`, `/run` for codex)
-- Keystrokes go to the agent's stdin exactly as typed
-- No special wrapping or interception — the agent sees raw input
-- Toggle key still works to return to AI Mode
-
-#### AI Mode behavior
-- `Enter` submits the input to the configured model (or regex intent parser if `model: none`)
-- `/` opens Pane Selector (can appear mid-command for inline pane reference)
-- AI can execute: run commands in panes, create/rename/close sessions, broadcast, multi-step plans
-- Broadcast and multi-step plans always show a confirmation step before executing
-
-#### Future: Telescope Mode
-- The Pane Selector and AI Mode may gain a full-screen telescope-style UI
-- Config flag `input.mode: telescope` will switch the selector to a full-screen overlay
-- Not in scope for initial implementation
+#### Agent-aware Insert Mode
+- When the active pane is detected as running an AI agent (claude, codex, aider),
+  Insert mode shows `INSERT · claude` in the mode indicator
+- Tab shows that agent's native slash commands for autocomplete
+- Keystrokes still go to PTY as-is — no wrapping
 
 ### 5. Workspace AI interaction model
+
+Commands entered via `:` in Normal mode go to the workspace AI.
 
 | Scenario | Behavior |
 |---|---|
 | `run <cmd> in <session>` | Auto-execute, no confirm |
 | `<cmd> in all sessions` | Show plan → y/n confirm → execute |
 | `run X then run Y in Z` | Show plan → y/n confirm → execute sequentially |
-| Relay to AI agent session | Pre-fill that pane's input via Agent Mode, do NOT auto-submit |
-| `/` prefix in AI Mode | Open Pane Selector |
+| `new [name] [in <group>]` | Create new session |
+| `rename <session> to <name>` | Rename session |
+| `close <session>` / `close idle` | Close session(s) |
+| `split` | Split current row |
+| `list` / `status` | List all sessions |
+| `!agent <claude\|codex\|aider\|none>` | Manually mark active pane's agent type |
+| LLM model configured | All natural language input routes through the model |
 
 **The plan-confirm step exists for any action with broad or irreversible scope.**
 Single-session, single-command dispatch skips confirmation.
 
+When `workspace_ai.model` is set to a real model name (not `none`), the AI handler
+sends workspace context (sessions, status, cwd) plus the user's message to the LLM,
+then parses `action` fenced code blocks in the response and executes them.
+
 ### 6. Config is YAML, Alacritty-style
-Config lives at `~/.config/waterfallterm/config.yaml`.
+Config lives at `~/.config/fluxtty/config.yaml`.
 All visual and behavioral properties are configurable.
 Hot-reload on file save. Schema is strict with sensible defaults.
 
@@ -123,28 +148,33 @@ Hot-reload on file save. Schema is strict with sensible defaults.
 
 **Runtime:** Tauri (Rust backend) + xterm.js (WebView frontend)
 
-- **Rust backend (src-tauri/):** PTY management, config loading/watching, session state, persistence, IPC
+- **Rust backend (src-tauri/):** PTY management, config loading/watching, session state, shell completion, IPC
 - **WebView frontend (src/):** xterm.js terminal rendering, layout, input bar UI — vanilla TypeScript
 - **xterm.js:** industry-standard terminal emulator (VSCode, Hyper). Handles ANSI, colors, fonts natively.
 - No Electron. No heavy JS frameworks. The terminal rendering is xterm.js; UI chrome is minimal TypeScript.
 
 **Key Rust dependencies (`src-tauri/Cargo.toml`):**
 ```
-portable-pty      — cross-platform PTY (macOS/Linux/Windows ConPTY)
-serde_yaml        — YAML config parsing
-serde / serde_json — serialization
-notify            — file system watcher for config hot-reload
-strip-ansi-escapes — ANSI stripping for disk persistence
-tokio             — async runtime
-tauri             — app framework, WebView, IPC
+portable-pty          — cross-platform PTY (macOS/Linux/Windows ConPTY)
+serde_yaml            — YAML config parsing
+serde / serde_json    — serialization
+notify                — file system watcher for config hot-reload
+strip-ansi-escapes    — ANSI stripping for disk persistence
+tokio                 — async runtime
+tauri                 — app framework, WebView, IPC
+dirs                  — platform home/config dir resolution
+uuid                  — unique IDs
+parking_lot           — faster Mutex/RwLock
+crossbeam-channel     — multi-producer PTY I/O channels
 ```
 
 **Key JS dependencies (`package.json`):**
 ```
-xterm                  — terminal emulator widget
-xterm-addon-fit        — resize PTY to match DOM element
-xterm-addon-web-links  — clickable URLs
-xterm-addon-search     — vi-mode search
+@xterm/xterm           — terminal emulator widget
+@xterm/addon-fit       — resize PTY to match DOM element
+@xterm/addon-web-links — clickable URLs
+@xterm/addon-search    — vi-mode search
+@tauri-apps/api        — Tauri IPC bindings
 ```
 
 ---
@@ -152,55 +182,62 @@ xterm-addon-search     — vi-mode search
 ## Project Structure
 
 ```
-waterfallterm/
+fluxtty/
 ├── CLAUDE.md
 ├── plan.md
 ├── package.json              — frontend build (Vite + TypeScript)
+├── docs/                     — GitHub Pages landing site
+│   └── index.html
 ├── src-tauri/
 │   ├── Cargo.toml
 │   ├── tauri.conf.json
 │   └── src/
 │       ├── main.rs           — Tauri app entry, window setup
+│       ├── lib.rs            — Tauri plugin registration, state init
 │       ├── pty.rs            — PTY lifecycle: spawn, resize, kill, I/O (portable-pty)
 │       ├── config.rs         — YAML load/validate/watch, emit config:changed to frontend
-│       ├── session.rs        — PaneInfo state, session events
-│       ├── persistence.rs    — WorkspaceSnapshot: serialize/deserialize, scrollback buffer
+│       ├── session.rs        — PaneInfo state, session events, layout management
 │       └── ipc.rs            — Tauri commands + events (frontend ↔ backend)
 ├── src/
-│   ├── app.ts                — Root: layout orchestration, mode manager init
+│   ├── main.ts               — Entry point
+│   ├── app.ts                — Root: layout orchestration, mode manager init, header
+│   ├── style.css             — Global CSS (CSS custom properties for theming)
 │   ├── waterfall/
-│   │   ├── WaterfallArea.ts  — Scrollable container, row height calculation
-│   │   ├── TerminalRow.ts    — Horizontal split container
-│   │   └── TerminalPane.ts   — xterm.js instance + pane chrome (header, status)
+│   │   ├── WaterfallArea.ts  — Scrollable container, row height calculation, pane spawn
+│   │   └── TerminalPane.ts   — xterm.js instance + pane chrome (header, status, note)
 │   ├── sidebar/
 │   │   └── SessionSidebar.ts — Grouped session tree, status dots, click-to-navigate
 │   ├── input/
-│   │   ├── InputBar.ts       — Bottom bar component, mode-aware rendering
-│   │   ├── ModeManager.ts    — Mode state machine (AI / PaneDirect / Selector / Agent)
+│   │   ├── InputBar.ts       — Bottom bar component, mode-aware rendering, all key handling
+│   │   ├── ModeManager.ts    — Mode state machine (Normal / Insert / Terminal / Pane-selector)
 │   │   ├── PaneSelector.ts   — Fuzzy finder overlay for pane selection
 │   │   └── AgentDetector.ts  — Detect agent type from PTY output (claude/codex/aider)
 │   ├── ai/
-│   │   ├── ai-handler.ts     — Intent parsing and dispatch logic
+│   │   ├── ai-handler.ts     — Intent parsing, action execution, LLM response parsing
+│   │   ├── llm-client.ts     — Multi-provider LLM client (Anthropic/OpenAI/Google/Ollama/claude-cli)
 │   │   └── plan-executor.ts  — Multi-step plan confirmation and sequential execution
 │   ├── session/
 │   │   ├── SessionManager.ts — Source of truth for all PaneInfo, emits change events
-│   │   └── types.ts          — PaneInfo, SessionStatus, Group, Plan, Mode types
+│   │   ├── AutoNamer.ts      — Auto-name panes from cwd and significant commands
+│   │   └── types.ts          — PaneInfo, SessionStatus, AgentType, InputMode types
+│   ├── settings/
+│   │   └── SettingsPanel.ts  — In-app settings panel (Ctrl+,), live preview, save to disk
 │   ├── config/
-│   │   ├── defaults.ts       — Full default config object
-│   │   ├── schema.ts         — Zod schema for validation
-│   │   └── ConfigContext.ts  — Event bus for live config changes
+│   │   └── ConfigContext.ts  — Config loading, hot-reload listener, CSS var application
 │   └── keybindings/
-│       └── KeybindingManager.ts — Map config keybindings → actions, handle conflicts
+│       └── KeybindingManager.ts — Map config keybindings → actions, dispatch
 ├── themes/
 │   ├── default-dark.yaml
 │   ├── catppuccin-mocha.yaml
 │   ├── gruvbox-dark.yaml
 │   └── solarized-dark.yaml
 ├── demo/
-│   └── demo.html             — Static HTML demo (UX/layout reference, not production)
+│   └── fluxtty-demo.gif      — Demo recording
 └── prototype/
     └── main.py               — Python/Textual prototype (reference only)
 ```
+
+**Note:** `TerminalRow.ts` does not exist as a separate file — rows are plain `<div class="terminal-row">` elements managed directly by `WaterfallArea.ts`. `persistence.rs`, `config/schema.ts`, and `config/defaults.ts` from the original plan are not yet implemented.
 
 ---
 
@@ -210,12 +247,15 @@ waterfallterm/
 ```typescript
 interface PaneInfo {
   id: number;
-  name: string;          // user-given, defaults to "shell-N"
+  name: string;          // user-given or auto-named from cwd/command
   group: string;         // free-form, e.g. "proj-alpha"
+  note: string;          // user annotation shown in pane header
   status: 'idle' | 'running' | 'error';
   cwd: string;
-  ptyPid: number;        // PTY process ID
-  agentType: AgentType;  // 'none' | 'claude' | 'codex' | 'aider' | 'unknown'
+  pty_pid: number;       // PTY process ID
+  agent_type: AgentType; // 'none' | 'claude' | 'codex' | 'aider' | 'unknown'
+  row_index: number;     // which waterfall row (sparse — do not use as array index)
+  pane_index: number;    // position within the row
 }
 
 type AgentType = 'none' | 'claude' | 'codex' | 'aider' | 'unknown';
@@ -224,79 +264,76 @@ type AgentType = 'none' | 'claude' | 'codex' | 'aider' | 'unknown';
 ### InputMode (state machine)
 ```typescript
 type InputMode =
-  | { type: 'ai' }
-  | { type: 'pane-direct'; paneId: number }
-  | { type: 'pane-selector'; query: string; returnMode: 'ai' }
-  | { type: 'agent'; paneId: number; agentType: AgentType };
+  | { type: 'normal' }                       // vi normal — navigation + : cmd + / selector
+  | { type: 'insert' }                       // i/a: line editor → active pane PTY
+  | { type: 'terminal'; paneId: number }     // Ctrl+\: xterm owns raw keyboard
+  | { type: 'pane-selector'; query: string }; // /: fuzzy pane search overlay
 ```
 
-### TerminalRow
-A row holds 1–N panes horizontally. Row height = viewport height minus chrome.
-Adding a pane to a row = horizontal split. Adding a new row = waterfall down.
+### AutoNamer
+- On pane spawn: name = `basename(cwd)` if still default
+- On cwd change (detected via session:changed events): update name if pane is auto-named
+- On significant command (claude, vim, psql, ssh, etc.): name = `"dir · command"`
+- User-renamed panes (`unmarkAutoNamed`) are never touched again
 
-### Persistence Architecture (tmux model)
+### LLM Client (multi-provider)
+`src/ai/llm-client.ts` supports:
+- `anthropic` — Anthropic API (claude-* models)
+- `openai` — OpenAI API (gpt-*, o1-*, o3-*, o4-*)
+- `google` — Google Gemini API (gemini-*)
+- `ollama` — Local Ollama (ollama/* or ollama:* prefix)
+- `claude-cli` — Runs `claude -p <prompt>` as a subprocess via Rust IPC
+
+Provider is auto-inferred from the model name when not explicitly set.
+API keys are read from env vars via Rust IPC (`get_env_var`) — not accessible to JS directly.
+
+### Shell Completion
+`shell_complete` IPC command runs `bash compgen` in the pane's cwd:
+- First word: completes commands, aliases, functions
+- Subsequent words: completes file/directory paths
+- Tab in Insert mode shows a dropdown; second Tab cycles items; longest common prefix is auto-inserted
+
+### TerminalRow
+A row is a `<div class="terminal-row">` holding 1–N pane elements.
+Row height is computed by `WaterfallArea.recalcRowHeights()`:
+- Phase 1 (few rows): `floor((containerH - overhead) / rowCount)` — all rows fit, no scrolling
+- Phase 2 (many rows): `threshold = 28 + ceil(18 × font.size × 1.2)` — rows scroll waterfall-style
+
+### Persistence Architecture
 
 **Core principle: PTYs are owned by the Rust backend, not the WebView.**
-The WebView is a dumb view that attaches to PTYs. Closing the window
-detaches the view; the PTYs keep running.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Rust Backend (always running while keep_alive: true)   │
+│  Rust Backend (src-tauri/)                              │
 │                                                         │
-│  PtyManager                                             │
-│  ├── PTY 1 (frontend-dev)  ← shell still running       │
-│  ├── PTY 2 (backend-api)   ← shell still running       │
-│  └── PTY 3 (claude-auth)   ← claude still running      │
-│                                                         │
-│  ScrollbackBuffer (in-memory, 5000 lines/pane)          │
-│  SessionManager  (layout, names, groups, status)        │
+│  PtyManager   — PTY processes (portable-pty)            │
+│  SessionManager — layout, names, groups, status         │
+│  Config        — YAML load + notify watcher             │
 └────────────────────┬────────────────────────────────────┘
                      │ Tauri IPC (invoke / events)
           ┌──────────┴───────────┐
-          │  WebView (window)    │  ← can close and reopen freely
+          │  WebView (window)    │
           │  xterm.js instances  │
           └──────────────────────┘
 ```
 
-**Scenario A — window closed, app alive (zero state loss):**
-1. WebView sends "detach" signal to Rust backend
-2. Backend continues; PTYs and scrollback buffers stay in memory
-3. On window reopen: backend sends current layout + full scrollback to new WebView
-4. WebView replays scrollback into xterm, reattaches to PTY streams
-5. User sees everything exactly as they left it
-
-**Scenario B — full app exit (reboot):**
-1. Backend serializes `WorkspaceSnapshot` to disk on exit
-2. On next launch: load snapshot, spawn new shells at saved CWD
-3. Print saved scrollback dimmed, then `── restored ──` separator
-4. Processes that were running are gone; user sees their last output as context
-
-```typescript
-interface WorkspaceSnapshot {
-  version: number;
-  saved_at: string;
-  rows: Array<{
-    panes: Array<{
-      name: string;
-      group: string;
-      cwd: string;
-      scrollback: string[];    // ANSI-stripped lines for disk
-      was_running: boolean;
-      agent_type: string;      // persisted so UI can restore agent indicator
-    }>;
-  }>;
-}
-```
+**Note:** Full tmux-style session persistence (reattach after window close) is not yet implemented. PTYs are currently tied to the window lifecycle.
 
 ### WorkspaceAI
-Not an LLM by default — intent parser + dispatcher. Wired to real model via
+Not an LLM by default — regex intent parser + dispatcher. Wired to real model via
 `workspace_ai.model` config. Core value is the dispatch model and the modal
 input surface, not the intelligence of the parser.
 
+When an LLM model is configured, the AI handler:
+1. Builds a system prompt with current session context
+2. Sends to the configured LLM provider
+3. Parses ` ```action ``` ` JSON blocks from the response
+4. Executes single actions immediately; broadcasts/multi-step require confirmation
+
 ### Config (YAML schema)
 ```yaml
-# ~/.config/waterfallterm/config.yaml
+# ~/.config/fluxtty/config.yaml
 
 window:
   opacity: 1.0
@@ -309,7 +346,6 @@ font:
   bold:    { family: "JetBrains Mono", style: Bold }
   italic:  { family: "JetBrains Mono", style: Italic }
   size: 13.0
-  offset: { x: 0, y: 0 }
   builtin_box_drawing: true
 
 colors:
@@ -351,12 +387,14 @@ shell:
   program: /bin/zsh
   args: []
 
+input:
+  live_typing: false      # true: each keystroke forwarded immediately (no buffering)
+
 keybindings:
   - { key: N,         mods: Control,       action: NewTerminal }
   - { key: H,         mods: Control,       action: SplitHorizontal }
   - { key: W,         mods: Control,       action: ClosePane }
   - { key: B,         mods: Control,       action: ToggleSidebar }
-  - { key: Space,     mods: Control,       action: ToggleInputMode }   # AI Mode ↔ Pane Direct
   - { key: Up,        mods: Control,       action: FocusPrevRow }
   - { key: Down,      mods: Control,       action: FocusNextRow }
   - { key: Tab,       mods: Control,       action: FocusNextPane }
@@ -369,78 +407,29 @@ keybindings:
   - { key: Plus,      mods: Control,       action: IncreaseFontSize }
   - { key: Minus,     mods: Control,       action: DecreaseFontSize }
   - { key: Key0,      mods: Control,       action: ResetFontSize }
-
-input:
-  toggle_key: { key: Space, mods: Control }   # ToggleInputMode binding
-  selector_key: "/"                            # triggers Pane Selector in AI Mode
-  mode: standard                               # standard | telescope (future)
-  ai_prompt: "AI"                              # label shown in AI Mode: "AI ❯"
-
-vi_mode:
-  enabled: true
-  pane:
-    enter_key: Escape
-    exit_key: i
-    cursor_style: Block
-    cursor_color: "#e3b341"
-    keybindings:
-      - { key: H,      action: MoveLeft }
-      - { key: J,      action: MoveDown }
-      - { key: K,      action: MoveUp }
-      - { key: L,      action: MoveRight }
-      - { key: W,      action: MoveWordForward }
-      - { key: B,      action: MoveWordBackward }
-      - { key: E,      action: MoveWordEndForward }
-      - { key: Key0,   action: MoveLineStart }
-      - { key: Dollar, action: MoveLineEnd }
-      - { key: G, mods: Shift,    action: ScrollToBottom }
-      - { key: G,                 action: ScrollToTop }
-      - { key: D, mods: Control,  action: ScrollHalfPageDown }
-      - { key: U, mods: Control,  action: ScrollHalfPageUp }
-      - { key: F, mods: Control,  action: ScrollPageDown }
-      - { key: B, mods: Control,  action: ScrollPageUp }
-      - { key: V,      action: ToggleVisualMode }
-      - { key: V, mods: Shift, action: ToggleVisualLineMode }
-      - { key: Y,      action: YankSelection }
-      - { key: Slash,  action: SearchForward }
-      - { key: Question, action: SearchBackward }
-      - { key: N,      action: SearchNext }
-      - { key: N, mods: Shift, action: SearchPrev }
-      - { key: I,      action: ExitViMode }
-      - { key: A,      action: ExitViMode }
-      - { key: Escape, action: ExitViMode }
-  workspace:
-    enabled: true
-    keybindings:
-      - { key: J,      action: FocusNextRow }
-      - { key: K,      action: FocusPrevRow }
-      - { key: L,      action: FocusNextPane }
-      - { key: H,      action: FocusPrevPane }
-      - { key: Return, action: EnterPane }
+  - { key: Comma,     mods: Control,       action: OpenSettings }
 
 workspace_ai:
   always_confirm_broadcast: true
   always_confirm_multi_step: true
-  agent_relay_auto_submit: false
-  model: none                          # none | claude-sonnet-4-6 | ...
-  api_key_env: ANTHROPIC_API_KEY
+  model: none                          # none | claude-sonnet-4-6 | gpt-4o | gemini-2.0-flash | ollama/llama3 | claude-cli
+  provider: null                       # auto-inferred from model if null
+  api_key_env: ANTHROPIC_API_KEY       # env var name; key read by Rust, never exposed to JS
+  base_url: null                       # override for Ollama or OpenAI-compatible endpoints
 
 waterfall:
-  row_height_mode: viewport
-  fixed_row_height: 40
+  row_height_mode: viewport            # viewport | fixed
+  fixed_row_height: 40                 # used only when row_height_mode: fixed (in rem)
   scroll_snap: false
   new_pane_focus: true
 
 persistence:
   keep_alive: true
-  tray_icon: true
-  disk_state_path: ~/.local/share/waterfallterm/workspace.json
   scrollback_lines: 5000
-  save_scrollback_on_exit: true
 
 session_defaults:
   group: default
-  shell: null
+  shell: null                          # null = use shell.program
 ```
 
 ---
@@ -454,20 +443,22 @@ session_defaults:
 | `claude` | Prompt patterns: `Claude ❯`, `Human:`, tool-use JSON blocks |
 | `codex` | Prompt patterns: `codex>`, `/diff` output format |
 | `aider` | `aider>` prompt, diff output |
-| `unknown` | User can manually mark a session via `!agent` command in AI Mode |
+| `unknown` | User can manually mark via `!agent` command |
 
-When `agentType != 'none'`, Agent Mode activates automatically on entering Pane Direct Mode for that pane. The input bar autocomplete is populated with that agent's known slash commands. Unknown agents show generic slash completion.
+When `agent_type != 'none'`, Insert mode shows agent name in the mode indicator
+and Tab autocompletes that agent's known slash commands.
 
 ---
 
 ## What NOT to Do
 
 - **Do not** make the Workspace AI a coding assistant. It manages sessions.
-- **Do not** auto-submit to AI agent sessions. Always route via Agent Mode (raw stdin, user-controlled).
+- **Do not** auto-submit to AI agent sessions. Always route via Insert mode (raw stdin, user-controlled).
 - **Do not** add a persistent AI panel that takes vertical space. The Input Bar is the only persistent UI at the bottom.
 - **Do not** couple xterm.js rendering logic with session management. Keep them separate via SessionManager events.
-- **Do not** store config in Tauri's store or localStorage. Config lives in `~/.config/waterfallterm/config.yaml` only.
+- **Do not** store config in Tauri's store or localStorage. Config lives in `~/.config/fluxtty/config.yaml` only.
 - **Do not** skip the plan-confirm step for broadcast or multi-step dispatch.
 - **Do not** hardcode colors, font sizes, or keybindings anywhere in source. Always read from config.
 - **Do not** reuse the Python/Textual prototype code in production. It is reference only.
-- **Do not** intercept or wrap agent input/output. Agent Mode sends raw bytes; the agent sees exactly what the user typed.
+- **Do not** intercept or wrap agent input/output. Insert mode sends raw bytes; the agent sees exactly what the user typed.
+- **Do not** use `row_index` from `PaneInfo` as a direct array index — it is sparse. Use `sessionManager.getPanesByRow()` which returns a compacted array.
