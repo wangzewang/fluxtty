@@ -22,7 +22,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 portable-pty = "0.9"
-notify = "6"
+notify = "8"
 strip-ansi-escapes = "0.2"
 tokio = { version = "1", features = ["full"] }
 log = "0.4"
