@@ -172,7 +172,8 @@ export class InputBar {
       // ── Navigation sub-state (default) ────────────────────────────
       e.preventDefault(); // block character input
 
-      if (e.key === 'i' || e.key === 'a') { this.clearNormalGg(); modeManager.enterInsert(); return; }
+      if (e.key === 'i') { this.clearNormalGg(); modeManager.enterInsert(); return; }
+      if (e.key === 'a') { this.clearNormalGg(); modeManager.enterAI();     return; }
       if (e.key === ':')    { this.clearNormalGg(); this.enterNormalCommand(); return; }
       if (e.key === '/')    { this.clearNormalGg(); this.inputEl.value = ''; this.paneSelector.open(''); return; }
       if (e.key === 'Escape') { this.clearNormalGg(); return; }
@@ -211,6 +212,50 @@ export class InputBar {
         if (e.key === 'b') { this.dispatchViScroll('pageUp');   return; }
       }
 
+      return;
+    }
+
+    // ── AI mode (free-form chat with Workspace AI) ───────────────────
+    if (mode.type === 'ai') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.hideAutocomplete();
+        this.historyIdx = -1;
+        modeManager.enterNormal();
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const text = this.inputEl.value.trim();
+        if (text) {
+          if (this.cmdHistory.length === 0 || this.cmdHistory[this.cmdHistory.length - 1] !== text) {
+            this.cmdHistory.push(text);
+          }
+          this.historyIdx = -1;
+          this.historyDraft = '';
+          this.inputEl.value = '';
+          this.hideAutocomplete();
+          if (planExecutor.isWaitingForConfirm()) {
+            planExecutor.handleConfirm(text).then(msg => {
+              if (msg) this.logLine(msg, 'ai-response');
+            });
+          } else {
+            this.submitAI(text);
+          }
+        }
+        return;
+      }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); this.historyNavigate(-1); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); this.historyNavigate(1);  return; }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (this.autocompleteItems.length > 0) {
+          this.autocompleteNavigate(e.shiftKey ? -1 : 1);
+        } else {
+          this.showAICommandCompletions(this.inputEl.value);
+        }
+        return;
+      }
       return;
     }
 
@@ -343,7 +388,7 @@ export class InputBar {
     const pane = sessionManager.getActivePane();
     const name = pane?.name ?? '—';
     this.promptEl.textContent = '';
-    this.inputEl.placeholder = `${name}  ·  i: insert  :: cmd  /: find  m: note  hjkl: nav  gg/G Ctrl+D/U: scroll`;
+    this.inputEl.placeholder = `${name}  ·  i: insert  a: AI  /: find  :: cmd  m: note  hjkl: nav`;
   }
 
   private dispatchWorkspaceAction(action: string) {
@@ -367,6 +412,12 @@ export class InputBar {
 
     if (this.paneSelector.isOpen()) {
       this.paneSelector.filter(val.startsWith('/') ? val.slice(1) : val);
+      return;
+    }
+
+    // ── AI mode input handling ───────────────────────────────────────
+    if (mode.type === 'ai') {
+      this.updateAutocomplete(val);
       return;
     }
 
@@ -578,8 +629,19 @@ export class InputBar {
         this.promptEl.textContent = '';
         this.modeIndicatorEl.textContent = 'NORMAL';
         this.modeIndicatorEl.className = 'mode-indicator mode-normal';
-        this.inputEl.placeholder = `${name}  ·  i: insert  : cmd  /: find  m: note  hjkl/arrows: nav  gg/G Ctrl+D/U: scroll`;
+        this.inputEl.placeholder = `${name}  ·  i: insert  a: AI  /: find  :: cmd  m: note  hjkl: nav`;
         this.inputEl.readOnly = true;
+        this.inputEl.focus();
+        break;
+      }
+      case 'ai': {
+        this.inputEl.readOnly = false;
+        this.promptEl.textContent = 'AI ❯';
+        this.modeIndicatorEl.textContent = 'AI';
+        this.modeIndicatorEl.className = 'mode-indicator mode-ai';
+        this.inputEl.placeholder = planExecutor.isWaitingForConfirm()
+          ? 'confirm plan: y to execute, n to cancel…'
+          : 'ask workspace AI… (Tab: cmds, ↑↓: history, Esc: normal)';
         this.inputEl.focus();
         break;
       }
@@ -615,15 +677,27 @@ export class InputBar {
   private autocompleteIdx = -1;
   private autocompletePrefix = '';
 
+  private readonly AI_COMMANDS = [
+    'run ', 'list', 'status', 'help', 'split',
+    'new ', 'close idle', 'rename ', 'move ',
+    'broadcast ', 'close ',
+  ];
+
   private updateAutocomplete(val: string) {
     if (!val) { this.hideAutocomplete(); return; }
-    const suggestions = [
-      'run ', 'list', 'status', 'help', 'split',
-      'new ', 'close idle', 'rename ',
-    ].filter(s => s.startsWith(val));
+    const suggestions = this.AI_COMMANDS.filter(s => s.startsWith(val));
     if (suggestions.length === 0) { this.hideAutocomplete(); return; }
     this.autocompletePrefix = '';
     this.showCompletions(suggestions);
+  }
+
+  private showAICommandCompletions(val: string) {
+    const matches = val
+      ? this.AI_COMMANDS.filter(s => s.startsWith(val))
+      : this.AI_COMMANDS;
+    if (matches.length === 0) return;
+    this.autocompletePrefix = '';
+    this.showCompletions(matches);
   }
 
   private async triggerShellComplete() {

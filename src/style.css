@@ -421,6 +421,7 @@ html, body {
   flex-shrink: 0;
 }
 .mode-normal   { background: rgba(227,179,65,.20);  color: var(--yellow); border: 1px solid rgba(227,179,65,.5); font-weight: 800; }
+.mode-ai       { background: rgba(188,140,255,.18); color: var(--magenta); border: 1px solid rgba(188,140,255,.45); font-weight: 800; }
 .mode-insert   { background: rgba(63,185,80,.12);  color: var(--green);  border: 1px solid rgba(63,185,80,.25); }
 .mode-insert.mode-insert-agent { background: rgba(57,197,207,.12); color: var(--cyan); border: 1px solid rgba(57,197,207,.25); }
 .mode-terminal { background: rgba(63,185,80,.15);  color: var(--green);  border: 1px solid rgba(63,185,80,.3); }
@@ -437,7 +438,7 @@ html, body {
   flex-shrink: 0;
   min-width: 80px;
 }
-[data-mode="ai"]     .input-prompt { color: var(--accent); }
+[data-mode="ai"]     .input-prompt { color: var(--magenta); font-weight: 700; }
 [data-mode="agent"]  .input-prompt { color: var(--cyan); }
 [data-mode="pane-selector"] .input-prompt { color: var(--yellow); }
 

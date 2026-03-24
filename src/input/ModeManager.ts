@@ -34,6 +34,7 @@ export class ModeManager {
 
   enterNormal() { this.set({ type: 'normal' }); }
   enterInsert() { this.set({ type: 'insert' }); }
+  enterAI()     { this.set({ type: 'ai' }); }
 
   enterTerminal(paneId?: number) {
     const id = paneId ?? sessionManager.getActivePaneId();
@@ -49,6 +50,7 @@ export class ModeManager {
   isInPaneMode(): boolean     { return this.mode.type === 'terminal'; }
   isInShellMode(): boolean    { return this.mode.type === 'insert'; }
   isInNormalMode(): boolean   { return this.mode.type === 'normal'; }
+  isInAIMode(): boolean       { return this.mode.type === 'ai'; }
   isInSelectorMode(): boolean { return this.mode.type === 'pane-selector'; }
 
   getCurrentPaneId(): number | null {
