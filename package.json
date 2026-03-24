@@ -1,0 +1,23 @@
+{
+  "name": "fluxtty",
+  "version": "0.1.0",
+  "description": "Multi-session developer workspace terminal",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@xterm/xterm": "^5.5.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-web-links": "^0.11.0",
+    "@xterm/addon-search": "^0.15.0",
+    "@tauri-apps/api": "^2.5.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1",
+    "typescript": "^5.4.0",
+    "vite": "^5.4.0"
+  }
+}

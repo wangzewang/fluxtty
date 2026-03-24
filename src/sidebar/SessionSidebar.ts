@@ -1,0 +1,70 @@
+import type { PaneInfo } from '../session/types';
+import { sessionManager } from '../session/SessionManager';
+import type { WaterfallArea } from '../waterfall/WaterfallArea';
+
+export class SessionSidebar {
+  readonly el: HTMLElement;
+  private waterfallArea: WaterfallArea | null = null;
+  private visible = false;
+
+  constructor() {
+    this.el = document.createElement('div');
+    this.el.className = 'session-sidebar';
+
+    sessionManager.onChange((panes, activePaneId) => {
+      this.render(panes, activePaneId);
+    });
+  }
+
+  setWaterfallArea(area: WaterfallArea) {
+    this.waterfallArea = area;
+  }
+
+  toggle() {
+    this.visible = !this.visible;
+    this.el.classList.toggle('sidebar-visible', this.visible);
+  }
+
+  isVisible(): boolean {
+    return this.visible;
+  }
+
+  private render(panes: PaneInfo[], activePaneId: number | null) {
+    // Group panes by group
+    const groups: Record<string, PaneInfo[]> = {};
+    for (const p of panes) {
+      if (!groups[p.group]) groups[p.group] = [];
+      groups[p.group].push(p);
+    }
+
+    this.el.innerHTML = `
+      <div class="sb-header">
+        <span class="sb-title">Sessions</span>
+        <span class="sb-count">${panes.length}</span>
+      </div>
+      <div class="sb-body">
+        ${Object.entries(groups).map(([group, ps]) => `
+          <div class="sb-group">
+            <div class="sb-group-label">${group}</div>
+            ${ps.map(p => `
+              <div class="sb-item ${p.id === activePaneId ? 'sb-active' : ''}" data-id="${p.id}">
+                <span class="sb-dot sb-dot-${p.status}">●</span>
+                <span class="sb-name">${p.name}</span>
+                ${p.agent_type !== 'none' ? `<span class="sb-agent">${p.agent_type}</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    // Bind clicks
+    this.el.querySelectorAll('.sb-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = parseInt((item as HTMLElement).dataset.id || '0');
+        sessionManager.setActivePane(id);
+        this.waterfallArea?.scrollToPane(id);
+      });
+    });
+  }
+}
