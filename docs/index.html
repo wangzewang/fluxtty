@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>fluxtty — Multi-session developer workspace terminal</title>
+  <meta name="description" content="A keyboard-driven, multi-session terminal workspace for developers running many concurrent tasks. Built with Tauri + xterm.js." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --border:  #30363d;
+      --fg:      #e6edf3;
+      --muted:   #8b949e;
+      --red:     #ff7b72;
+      --green:   #3fb950;
+      --yellow:  #e3b341;
+      --blue:    #388bfd;
+      --magenta: #bc8cff;
+      --cyan:    #39c5cf;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13,17,23,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-family: var(--font-mono);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--fg);
+      letter-spacing: -0.5px;
+    }
+
+    .nav-logo span { color: var(--cyan); }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+      font-size: 0.9rem;
+    }
+
+    .nav-links a { color: var(--muted); }
+    .nav-links a:hover { color: var(--fg); text-decoration: none; }
+
+    .nav-cta {
+      background: var(--blue);
+      color: #fff !important;
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    .nav-cta:hover { background: #58a6ff; text-decoration: none !important; }
+
+    /* ── Hero ── */
+    .hero {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 6rem 2rem 4rem;
+      text-align: center;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      background: rgba(56,139,253,0.1);
+      border: 1px solid rgba(56,139,253,0.3);
+      color: var(--blue);
+      padding: 0.2rem 0.75rem;
+      border-radius: 999px;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.5px;
+    }
+
+    h1 {
+      font-size: clamp(2.5rem, 6vw, 4rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -1.5px;
+      margin-bottom: 1.25rem;
+    }
+
+    h1 .logo { color: var(--cyan); font-family: var(--font-mono); }
+
+    .hero-sub {
+      font-size: 1.2rem;
+      color: var(--muted);
+      max-width: 600px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--blue);
+      color: #fff;
+      padding: 0.65rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: background 0.15s;
+    }
+
+    .btn-primary:hover { background: #58a6ff; text-decoration: none; }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--surface);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      padding: 0.65rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .btn-secondary:hover { border-color: var(--blue); text-decoration: none; background: #1c2230; }
+
+    /* ── Demo ── */
+    .demo-wrap {
+      max-width: 960px;
+      margin: 3rem auto 0;
+      padding: 0 2rem;
+    }
+
+    /* macOS window chrome */
+    .sim-window {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 32px 96px rgba(0,0,0,0.6);
+      border: 1px solid #30363d;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.5;
+      background: #0d1117;
+      user-select: none;
+    }
+    .sim-titlebar {
+      height: 36px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .sim-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .sim-dot.r { background: #ff5f56; }
+    .sim-dot.y { background: #ffbd2e; }
+    .sim-dot.g { background: #27c93f; }
+    .sim-app-title {
+      font-size: 11px;
+      color: #8b949e;
+      margin: 0 auto;
+      letter-spacing: .3px;
+    }
+    .sim-header {
+      height: 34px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .sim-logo { color: #39c5cf; font-weight: 700; font-size: 13px; }
+    .sim-session-count { color: #8b949e; font-size: 11px; }
+    .sim-spacer { flex: 1; }
+    .sim-hbtn {
+      font-size: 11px;
+      color: #8b949e;
+      background: #1c2128;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 2px 8px;
+      cursor: default;
+    }
+    /* body: sidebar + waterfall */
+    .sim-body {
+      display: flex;
+      height: 340px;
+    }
+    .sim-sidebar {
+      width: 0;
+      overflow: hidden;
+      background: #0d1117;
+      border-right: 1px solid #30363d;
+      transition: width .25s ease;
+      flex-shrink: 0;
+    }
+    .sim-sidebar.open { width: 170px; }
+    .sim-sb-header {
+      height: 30px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      border-bottom: 1px solid #21262d;
+      color: #8b949e;
+      font-size: 11px;
+      gap: 6px;
+    }
+    .sim-sb-count {
+      background: #21262d;
+      border-radius: 999px;
+      padding: 0 5px;
+      font-size: 10px;
+      color: #8b949e;
+    }
+    .sim-sb-group { padding: 6px 8px 2px; font-size: 10px; color: #8b949e; letter-spacing: .5px; text-transform: uppercase; }
+    .sim-sb-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      font-size: 11.5px;
+      color: #8b949e;
+      cursor: default;
+      border-radius: 4px;
+      margin: 0 4px;
+    }
+    .sim-sb-item.active { background: #1c2128; color: #e6edf3; }
+    .sim-sb-dot { font-size: 8px; }
+    .sim-sb-dot.idle    { color: #8b949e; }
+    .sim-sb-dot.running { color: #3fb950; }
+    .sim-sb-agent { font-size: 9px; background: rgba(57,197,207,.15); color: #39c5cf; border: 1px solid rgba(57,197,207,.3); border-radius: 3px; padding: 0 4px; margin-left: auto; }
+    /* waterfall */
+    .sim-waterfall {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 3px;
+    }
+    .sim-row {
+      display: flex;
+      gap: 3px;
+      flex: 1;
+    }
+    .sim-pane {
+      flex: 1;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: border-color .15s;
+    }
+    .sim-pane.active { border-color: #388bfd; }
+    .sim-pane-header {
+      height: 26px;
+      background: #161b22;
+      border-bottom: 1px solid #21262d;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      gap: 6px;
+      flex-shrink: 0;
+      font-size: 11px;
+    }
+    .sim-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .sim-status-dot.idle    { background: #484f58; }
+    .sim-status-dot.running { background: #3fb950; }
+    .sim-pane-name { color: #e6edf3; font-weight: 600; font-size: 11.5px; }
+    .sim-pane-group { font-size: 10px; color: #8b949e; background: #21262d; border-radius: 3px; padding: 0 4px; }
+    .sim-pane-cwd { margin-left: auto; font-size: 10px; color: #6e7681; }
+    .sim-agent-badge { font-size: 10px; background: rgba(57,197,207,.15); color: #39c5cf; border: 1px solid rgba(57,197,207,.3); border-radius: 3px; padding: 0 4px; }
+    .sim-term {
+      flex: 1;
+      padding: 6px 8px;
+      overflow: hidden;
+      font-size: 12px;
+      line-height: 1.55;
+      color: #e6edf3;
+    }
+    .tc  { color: #39c5cf; }
+    .tg  { color: #3fb950; }
+    .ty  { color: #e3b341; }
+    .tr  { color: #ff7b72; }
+    .tm  { color: #bc8cff; }
+    .tb  { color: #388bfd; }
+    .td  { color: #8b949e; }
+    /* input bar */
+    .sim-inputbar-wrap {
+      flex-shrink: 0;
+      border-top: 1px solid #30363d;
+      background: #0d1117;
+    }
+    .sim-log {
+      display: none;
+      flex-direction: column;
+      padding: 4px 10px;
+      border-bottom: 1px solid #21262d;
+      max-height: 72px;
+      overflow: hidden;
+    }
+    .sim-log.visible { display: flex; }
+    .sim-log-line { font-size: 11.5px; line-height: 1.6; }
+    .sim-log-line.input    { color: #388bfd; }
+    .sim-log-line.response { color: #e6edf3; }
+    .sim-log-line.step     { color: #3fb950; }
+    .sim-inputbar {
+      height: 38px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 8px;
+    }
+    .sim-mode {
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 4px;
+      letter-spacing: .5px;
+      flex-shrink: 0;
+    }
+    .sim-mode.normal   { background: rgba(227,179,65,.2);  color: #e3b341; border: 1px solid rgba(227,179,65,.5); }
+    .sim-mode.insert   { background: rgba(63,185,80,.12);  color: #3fb950; border: 1px solid rgba(63,185,80,.3); }
+    .sim-mode.ai       { background: rgba(188,140,255,.18); color: #bc8cff; border: 1px solid rgba(188,140,255,.45); }
+    .sim-mode.terminal { background: rgba(63,185,80,.15);  color: #3fb950; border: 1px solid rgba(63,185,80,.3); }
+    .sim-prompt { font-weight: 700; font-size: 12px; flex-shrink: 0; min-width: 20px; }
+    .sim-prompt.insert   { color: #3fb950; }
+    .sim-prompt.ai       { color: #bc8cff; }
+    .sim-prompt.terminal { color: #3fb950; }
+    .sim-input-field {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #8b949e;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .sim-cursor {
+      display: inline-block;
+      width: 7px;
+      height: 14px;
+      background: #e6edf3;
+      vertical-align: middle;
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    /* scenario tabs */
+    .sim-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .sim-tab {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      padding: 4px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .sim-tab:hover { border-color: var(--blue); color: var(--fg); }
+    .sim-tab.active { background: rgba(56,139,253,.12); border-color: var(--blue); color: var(--blue); }
+
+    /* ── The Shift ── */
+    .shift-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 1.5rem;
+      align-items: center;
+      margin-bottom: 3.5rem;
+    }
+    .shift-col {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+    }
+    .shift-col.before { border-color: #30363d; opacity: .7; }
+    .shift-col.after  { border-color: rgba(188,140,255,.4); background: rgba(188,140,255,.05); }
+    .shift-col-label {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+    .shift-col.before .shift-col-label { color: var(--muted); }
+    .shift-col.after  .shift-col-label { color: var(--magenta); }
+    .shift-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .shift-item:last-child { margin-bottom: 0; }
+    .shift-dot { flex-shrink: 0; margin-top: 4px; font-size: 0.6rem; }
+    .shift-col.before .shift-dot { color: var(--muted); }
+    .shift-col.after  .shift-dot { color: var(--magenta); }
+    .shift-arrow {
+      font-size: 1.5rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    /* vim analogy table */
+    .vim-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+    .vim-table th {
+      text-align: left;
+      padding: 0.5rem 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .vim-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #21262d;
+      vertical-align: top;
+    }
+    .vim-table tr:last-child td { border-bottom: none; }
+    .vim-table td:first-child { color: var(--muted); font-family: var(--font-mono); font-size: 0.85rem; width: 22%; }
+    .vim-table td:nth-child(2) { width: 39%; }
+    .vim-table td:nth-child(3) { width: 39%; }
+    .vim-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-right: 4px;
+    }
+    .vim-badge.normal   { background: rgba(227,179,65,.15); color: var(--yellow); border: 1px solid rgba(227,179,65,.3); }
+    .vim-badge.insert   { background: rgba(63,185,80,.1);  color: var(--green);  border: 1px solid rgba(63,185,80,.25); }
+    .vim-badge.ai       { background: rgba(188,140,255,.12); color: var(--magenta); border: 1px solid rgba(188,140,255,.3); }
+    .vim-badge.terminal { background: rgba(63,185,80,.1); color: var(--green); border: 1px solid rgba(63,185,80,.25); }
+    @media (max-width: 640px) {
+      .shift-grid { grid-template-columns: 1fr; }
+      .shift-arrow { display: none; }
+    }
+
+    /* ── Sections ── */
+    section {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 5rem 2rem;
+    }
+
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--cyan);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+
+    h2 {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 1rem;
+    }
+
+    .section-sub {
+      color: var(--muted);
+      font-size: 1.05rem;
+      max-width: 560px;
+      margin-bottom: 3rem;
+    }
+
+    /* ── Feature grid ── */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      transition: border-color 0.15s;
+    }
+
+    .feature-card:hover { border-color: rgba(56,139,253,0.4); }
+
+    .feature-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature-card p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── Modes table ── */
+    .modes-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .mode-row {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 1rem;
+      align-items: start;
+      padding: 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .mode-badge {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    .mode-badge.normal   { background: rgba(227,179,65,0.15);  color: var(--yellow); border: 1px solid rgba(227,179,65,0.3); }
+    .mode-badge.insert   { background: rgba(63,185,80,0.15);   color: var(--green);  border: 1px solid rgba(63,185,80,0.3); }
+    .mode-badge.terminal { background: rgba(188,140,255,0.15); color: var(--magenta);border: 1px solid rgba(188,140,255,0.3); }
+    .mode-badge.find     { background: rgba(57,197,207,0.15);  color: var(--cyan);   border: 1px solid rgba(57,197,207,0.3); }
+
+    .mode-row p { font-size: 0.9rem; color: var(--muted); }
+    .mode-row strong { color: var(--fg); }
+
+    /* ── Code block ── */
+    .code-block {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+
+    .code-block pre {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: var(--fg);
+    }
+
+    .code-block .cm  { color: var(--muted); }
+    .code-block .kw  { color: var(--magenta); }
+    .code-block .st  { color: var(--green); }
+    .code-block .nu  { color: var(--cyan); }
+    .code-block .ky  { color: var(--blue); }
+
+    /* ── Stack section ── */
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .stack-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.875rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .stack-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Keybindings ── */
+    .kb-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 0.5rem;
+    }
+
+    .kb-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0.875rem;
+      border-radius: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 0.875rem;
+    }
+
+    .kb-keys {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    kbd {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      background: #1c2128;
+      border: 1px solid var(--border);
+      border-bottom-width: 2px;
+      border-radius: 4px;
+      padding: 0.1rem 0.5rem;
+      color: var(--fg);
+    }
+
+    .kb-desc { color: var(--muted); }
+
+    /* ── Divider ── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--fg); }
+
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .mode-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <span class="nav-logo">flux<span>tty</span></span>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#modes">Modes</a></li>
+    <li><a href="#config">Config</a></li>
+    <li><a href="#keybindings">Keys</a></li>
+    <li><a href="https://github.com/wangzewang/fluxtty" class="nav-cta">GitHub</a></li>
+  </ul>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-badge">vim-modal &nbsp;·&nbsp; multi-agent &nbsp;·&nbsp; AI-native</div>
+  <h1>
+    vim,&nbsp; but for<br />
+    <span class="logo">AI&nbsp;development</span>
+  </h1>
+  <p class="hero-sub">
+    You don't write code anymore — you direct agents.
+    fluxtty is a keyboard-driven terminal workspace built for supervising many AI agents at once,
+    with the same modal efficiency that made vim indispensable.
+  </p>
+  <div class="hero-actions">
+    <a href="https://github.com/wangzewang/fluxtty" class="btn-primary">
+      <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      View on GitHub
+    </a>
+    <a href="#the-shift" class="btn-secondary">The idea</a>
+  </div>
+</div>
+
+<!-- Demo -->
+<div class="demo-wrap">
+
+  <!-- scenario tabs -->
+  <div class="sim-tabs" id="sim-tabs">
+    <button class="sim-tab active" data-scenario="waterfall">Monitor agents</button>
+    <button class="sim-tab" data-scenario="insert">Send a command</button>
+    <button class="sim-tab" data-scenario="ai">Talk to workspace AI</button>
+    <button class="sim-tab" data-scenario="sidebar">Navigate sessions</button>
+  </div>
+
+  <!-- simulated window -->
+  <div class="sim-window">
+    <!-- macOS chrome -->
+    <div class="sim-titlebar">
+      <div class="sim-dot r"></div>
+      <div class="sim-dot y"></div>
+      <div class="sim-dot g"></div>
+      <span class="sim-app-title">fluxtty</span>
+    </div>
+    <!-- app header -->
+    <div class="sim-header">
+      <span class="sim-logo">fluxtty</span>
+      <span class="sim-session-count" id="sim-session-count">3 sessions · 2 running</span>
+      <span class="sim-spacer"></span>
+      <span class="sim-hbtn">+ New</span>
+      <span class="sim-hbtn">Split</span>
+      <span class="sim-hbtn" id="sim-sessions-btn">Sessions</span>
+    </div>
+    <!-- main body -->
+    <div class="sim-body">
+      <!-- sidebar -->
+      <div class="sim-sidebar" id="sim-sidebar">
+        <div class="sim-sb-header">Sessions <span class="sim-sb-count">3</span></div>
+        <div class="sim-sb-group">default</div>
+        <div class="sim-sb-item active">
+          <span class="sim-sb-dot running">●</span>dev
+        </div>
+        <div class="sim-sb-item">
+          <span class="sim-sb-dot running">●</span>backend
+          <span class="sim-sb-agent">claude</span>
+        </div>
+        <div class="sim-sb-item">
+          <span class="sim-sb-dot idle">●</span>tests
+        </div>
+      </div>
+      <!-- waterfall -->
+      <div class="sim-waterfall" id="sim-waterfall">
+        <!-- row 1 -->
+        <div class="sim-row" id="sim-row1">
+          <div class="sim-pane active" id="sim-pane-dev">
+            <div class="sim-pane-header">
+              <div class="sim-status-dot running"></div>
+              <span class="sim-pane-name">dev</span>
+              <span class="sim-pane-cwd">~/workspace/fluxtty</span>
+            </div>
+            <div class="sim-term" id="sim-term-dev">
+              <span class="tg">➜</span> <span class="tc">fluxtty</span> npm run dev<br>
+              <span class="td">  VITE v5.4.2  ready in 312ms</span><br><br>
+              <span class="td">  ➜</span>  <span class="tw">Local</span>: <span class="tb">http://localhost:5173/</span><br>
+              <span class="td">  ➜</span>  <span class="tw">Network</span>: <span class="tb">http://192.168.1.10:5173/</span>
+            </div>
+          </div>
+          <div class="sim-pane" id="sim-pane-backend">
+            <div class="sim-pane-header">
+              <div class="sim-status-dot running"></div>
+              <span class="sim-pane-name">backend</span>
+              <span class="sim-agent-badge">claude</span>
+              <span class="sim-pane-cwd">~/workspace/fluxtty/src-tauri</span>
+            </div>
+            <div class="sim-term" id="sim-term-backend">
+              <span class="tm">╭────────────────────────────╮</span><br>
+              <span class="tm">│</span> <span class="tw">Welcome to Claude Code</span>     <span class="tm">│</span><br>
+              <span class="tm">╰────────────────────────────╯</span><br><br>
+              <span class="td">&gt;</span> fix the scrollback buffer bug<br><br>
+              <span class="tc">⚙</span> <span class="td">Reading pty.rs…</span><br>
+              <span class="tg">✔</span> Found issue in line 178
+            </div>
+          </div>
+        </div>
+        <!-- row 2 -->
+        <div class="sim-row" id="sim-row2">
+          <div class="sim-pane" id="sim-pane-tests">
+            <div class="sim-pane-header">
+              <div class="sim-status-dot idle"></div>
+              <span class="sim-pane-name">tests</span>
+              <span class="sim-pane-cwd">~/workspace/fluxtty</span>
+            </div>
+            <div class="sim-term" id="sim-term-tests">
+              <span class="tg">✔</span> test pty::spawn_shell <span class="td">.............. ok</span><br>
+              <span class="tg">✔</span> test pty::resize_pty <span class="td">.............. ok</span><br>
+              <span class="tg">✔</span> test session::auto_naming <span class="td">......... ok</span><br>
+              <span class="tg">✔</span> test config::hot_reload <span class="td">........... ok</span><br><br>
+              <span class="tg">test result: ok. 12 passed; 0 failed</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- input bar -->
+    <div class="sim-inputbar-wrap">
+      <div class="sim-log" id="sim-log"></div>
+      <div class="sim-inputbar">
+        <span class="sim-mode normal" id="sim-mode-badge">NORMAL</span>
+        <span class="sim-prompt" id="sim-prompt"></span>
+        <span class="sim-input-field" id="sim-input-field">
+          dev &nbsp;·&nbsp; i: insert &nbsp;a: AI &nbsp;/: find &nbsp;:: cmd &nbsp;hjkl: nav
+        </span>
+      </div>
+    </div>
+  </div><!-- /sim-window -->
+</div><!-- /demo-wrap -->
+
+<script>
+(function() {
+  const SCENARIOS = {
+    waterfall: {
+      run(ctx) {
+        ctx.setMode('NORMAL', 'normal', '', '');
+        ctx.setField('dev &nbsp;·&nbsp; i: insert &nbsp;a: AI &nbsp;/: find &nbsp;:: cmd &nbsp;hjkl: nav');
+        ctx.setActive('sim-pane-dev');
+        ctx.sidebarClose();
+        ctx.showRow2(true);
+        ctx.clearLog();
+      }
+    },
+    insert: {
+      run(ctx) {
+        ctx.setActive('sim-pane-dev');
+        ctx.sidebarClose();
+        ctx.showRow2(true);
+        ctx.clearLog();
+        const steps = [
+          [0,    () => { ctx.setMode('NORMAL','normal','',''); ctx.setField('dev &nbsp;·&nbsp; press i to enter INSERT mode'); }],
+          [900,  () => { ctx.setMode('INSERT','insert','dev ●','insert'); ctx.setField(''); ctx.setCursor(true); }],
+          [1600, () => { ctx.typeField('cargo test'); }],
+          [2600, () => { ctx.setMode('INSERT','insert','dev','insert'); ctx.setCursor(false); ctx.setTermText('sim-term-tests',
+            '<span class="td">$ cargo test</span><br>' +
+            '<span class="td">   Compiling fluxtty v0.1.0</span><br>' +
+            '<span class="tg">✔</span> test pty::spawn_shell <span class="td">.. ok</span><br>' +
+            '<span class="tg">✔</span> test session::auto_naming <span class="td">.. ok</span><br>' +
+            '<span class="tg">✔</span> test config::hot_reload <span class="td">.. ok</span><br>' +
+            '<br><span class="tg">test result: ok. 12 passed; 0 failed</span>'
+          ); }],
+          [3600, () => { ctx.setMode('NORMAL','normal','',''); ctx.setField('tests &nbsp;·&nbsp; back in NORMAL mode'); ctx.setActive('sim-pane-tests'); }],
+        ];
+        ctx.runSteps(steps);
+      }
+    },
+    ai: {
+      run(ctx) {
+        ctx.setActive('sim-pane-dev');
+        ctx.sidebarClose();
+        ctx.showRow2(true);
+        ctx.clearLog();
+        const steps = [
+          [0,    () => { ctx.setMode('NORMAL','normal','',''); ctx.setField('press a to enter AI mode'); }],
+          [900,  () => { ctx.setMode('AI','ai','AI ❯','ai'); ctx.setField(''); ctx.setCursor(true); }],
+          [1600, () => { ctx.typeField('run cargo test in tests'); }],
+          [2500, () => {
+            ctx.setCursor(false);
+            ctx.setField('');
+            ctx.addLog('❯ run cargo test in tests', 'input');
+            ctx.addLog('Running "cargo test" in tests…', 'response');
+            ctx.setMode('AI','ai','AI ❯','ai');
+            ctx.setTermText('sim-term-tests',
+              '<span class="td">$ cargo test</span><br>' +
+              '<span class="td">   Compiling fluxtty v0.1.0</span><br>' +
+              '<span class="tg">✔</span> test pty::spawn_shell <span class="td">.. ok</span><br>' +
+              '<span class="tg">✔</span> test config::hot_reload <span class="td">.. ok</span><br>' +
+              '<br><span class="tg">test result: ok. 12 passed; 0 failed</span>'
+            );
+          }],
+          [3800, () => { ctx.setCursor(true); ctx.typeField('close idle'); }],
+          [4800, () => {
+            ctx.setCursor(false); ctx.setField('');
+            ctx.addLog('❯ close idle', 'input');
+            ctx.addLog('Closed 1 idle session.', 'response');
+            ctx.showRow2(false);
+          }],
+          [6000, () => { ctx.setCursor(true); }],
+        ];
+        ctx.runSteps(steps);
+      }
+    },
+    sidebar: {
+      run(ctx) {
+        ctx.setMode('NORMAL','normal','','');
+        ctx.setField('press b to toggle session sidebar');
+        ctx.sidebarClose();
+        ctx.setActive('sim-pane-dev');
+        ctx.showRow2(true);
+        ctx.clearLog();
+        const steps = [
+          [900,  () => { ctx.sidebarOpen(); ctx.setField('b &nbsp;·&nbsp; sidebar toggled'); }],
+          [2200, () => { ctx.setActive('sim-pane-backend'); ctx.setField('click a session to jump to it'); }],
+          [3400, () => { ctx.sidebarClose(); ctx.setField('b again to close'); }],
+        ];
+        ctx.runSteps(steps);
+      }
+    },
+  };
+
+  // ── context helpers ────────────────────────────────────────────────
+  let timers = [];
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+  const $ = id => document.getElementById(id);
+
+  const ctx = {
+    setMode(label, cls, prompt, promptCls) {
+      const b = $('sim-mode-badge');
+      b.textContent = label;
+      b.className = 'sim-mode ' + cls;
+      const p = $('sim-prompt');
+      p.textContent = prompt;
+      p.className = 'sim-prompt ' + (promptCls || '');
+    },
+    setField(html) {
+      const f = $('sim-input-field');
+      f.innerHTML = html;
+    },
+    setCursor(on) {
+      let c = $('sim-input-field').querySelector('.sim-cursor');
+      if (on && !c) {
+        c = document.createElement('span');
+        c.className = 'sim-cursor';
+        $('sim-input-field').appendChild(c);
+      } else if (!on && c) {
+        c.remove();
+      }
+    },
+    typeField(text) {
+      const f = $('sim-input-field');
+      f.textContent = '';
+      let i = 0;
+      const t = setInterval(() => {
+        if (i >= text.length) { clearInterval(t); ctx.setCursor(true); return; }
+        f.textContent += text[i++];
+      }, 55);
+      timers.push(t);
+    },
+    setActive(paneId) {
+      document.querySelectorAll('.sim-pane').forEach(p => p.classList.remove('active'));
+      $(paneId)?.classList.add('active');
+    },
+    sidebarOpen()  { $('sim-sidebar').classList.add('open'); },
+    sidebarClose() { $('sim-sidebar').classList.remove('open'); },
+    showRow2(v)    { $('sim-row2').style.display = v ? '' : 'none'; },
+    setTermText(id, html) { $(id).innerHTML = html; },
+    clearLog() {
+      const l = $('sim-log');
+      l.innerHTML = '';
+      l.classList.remove('visible');
+    },
+    addLog(text, cls) {
+      const l = $('sim-log');
+      l.classList.add('visible');
+      const d = document.createElement('div');
+      d.className = 'sim-log-line ' + cls;
+      d.textContent = text;
+      l.appendChild(d);
+    },
+    runSteps(steps) {
+      steps.forEach(([ms, fn]) => {
+        timers.push(setTimeout(fn, ms));
+      });
+    },
+  };
+
+  // ── tab switching ──────────────────────────────────────────────────
+  document.querySelectorAll('.sim-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      clearTimers();
+      document.querySelectorAll('.sim-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const s = SCENARIOS[tab.dataset.scenario];
+      if (s) s.run(ctx);
+    });
+  });
+
+  // Boot default scenario
+  SCENARIOS.waterfall.run(ctx);
+})();
+</script>
+
+<hr />
+
+<!-- The Shift -->
+<section id="the-shift">
+  <div class="section-label">The idea</div>
+  <h2>AI changed what developers do all day</h2>
+  <p class="section-sub">
+    When AI writes the code, your job shifts from typing to directing.
+    You need a tool built for that — not a text editor with a terminal bolted on.
+  </p>
+
+  <div class="shift-grid">
+    <div class="shift-col before">
+      <div class="shift-col-label">Before</div>
+      <div class="shift-item"><span class="shift-dot">●</span><span>Open editor, write code manually</span></div>
+      <div class="shift-item"><span class="shift-dot">●</span><span>One terminal for occasional commands</span></div>
+      <div class="shift-item"><span class="shift-dot">●</span><span>Run tests, check output, fix code yourself</span></div>
+      <div class="shift-item"><span class="shift-dot">●</span><span>Context-switch between editor and terminal</span></div>
+    </div>
+    <div class="shift-arrow">→</div>
+    <div class="shift-col after">
+      <div class="shift-col-label">Now</div>
+      <div class="shift-item"><span class="shift-dot">●</span><span>Agents write code — you review and direct</span></div>
+      <div class="shift-item"><span class="shift-dot">●</span><span>5–10 sessions open: agents, servers, shells</span></div>
+      <div class="shift-item"><span class="shift-dot">●</span><span>Monitor outputs, send instructions, course-correct</span></div>
+      <div class="shift-item"><span class="shift-dot">●</span><span>The terminal <em>is</em> the workspace</span></div>
+    </div>
+  </div>
+
+  <h2 style="font-size:1.5rem;margin-bottom:0.75rem">Modal input is the right model for this</h2>
+  <p class="section-sub" style="margin-bottom:1.5rem">
+    vim proved that separating navigation from editing is more efficient.
+    The same insight applies when you're managing terminals instead of text.
+  </p>
+
+  <table class="vim-table">
+    <thead>
+      <tr>
+        <th>Mode</th>
+        <th>In vim</th>
+        <th>In fluxtty</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="vim-badge normal">NORMAL</span></td>
+        <td>Move cursor without inserting text. Your hands rest on the home row, eyes read the file.</td>
+        <td>Navigate panes with <code>hjkl</code>. Monitor what agents are doing without disturbing any shell. Scroll output with <code>gg</code> / <code>G</code> / <code>Ctrl+D</code>.</td>
+      </tr>
+      <tr>
+        <td><span class="vim-badge insert">INSERT</span></td>
+        <td>Type characters into the buffer.</td>
+        <td>Press <code>i</code> — keystrokes go directly to the active shell. Send commands, answer prompts, interrupt with <code>Ctrl+C</code>. <code>Esc</code> returns to Normal.</td>
+      </tr>
+      <tr>
+        <td><span class="vim-badge ai">AI</span></td>
+        <td>— (no equivalent)</td>
+        <td>Press <code>a</code> — talk to the workspace AI. "run cargo test in backend", "close idle sessions", "rename frontend to dev". Dispatch without touching the agent directly.</td>
+      </tr>
+      <tr>
+        <td><span class="vim-badge terminal">TERMINAL</span></td>
+        <td>— (no equivalent)</td>
+        <td>Press <code>Ctrl+\</code> — xterm.js owns the keyboard. Use when an agent needs raw input, or you want full vim keybindings inside a pane. <code>Ctrl+\</code> returns to Normal.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<hr />
+
+<!-- Features -->
+<section id="features">
+  <div class="section-label">Features</div>
+  <h2>Built for agent supervision</h2>
+  <p class="section-sub">
+    Every feature answers the same question: how do I stay in control when ten processes are running at once?
+  </p>
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">&#9638;</div>
+      <h3>Waterfall layout</h3>
+      <p>
+        Sessions stack in rows you can see simultaneously. When agents are busy,
+        their output is right there — no alt-tabbing, no hidden windows.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#9000;</div>
+      <h3>Vim-modal input</h3>
+      <p>
+        Navigate ten panes without touching the mouse. <code>hjkl</code> moves focus,
+        <code>i</code> sends a command, <code>a</code> talks to workspace AI, <code>/</code> jumps to any session.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#127760;</div>
+      <h3>Agent detection</h3>
+      <p>
+        Automatically detects claude, aider, codex running in a pane. Shows an agent badge,
+        enables Tab completion for that agent's slash commands, and keeps Insert mode clean.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128736;</div>
+      <h3>Workspace AI dispatch</h3>
+      <p>
+        Press <code>a</code> and ask in plain language. Run commands across sessions,
+        close idle agents, broadcast to all. Confirm before any broad action.
+        Supports Claude, GPT, Gemini, Ollama, or no model at all.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128196;</div>
+      <h3>Auto-naming</h3>
+      <p>
+        Pane names update from cwd on spawn, then change to reflect what's running —
+        <code>claude</code>, <code>cargo test</code>, <code>psql</code>.
+        You always know what each session is without reading the output.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#9881;</div>
+      <h3>YAML config, hot-reload</h3>
+      <p>
+        <code>~/.config/fluxtty/config.yaml</code> — Alacritty-style.
+        Font, colors, keybindings, AI provider. Changes apply instantly, no restart.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128065;</div>
+      <h3>Session sidebar</h3>
+      <p>
+        Grouped session tree with running/idle/error indicators.
+        <code>b</code> to toggle. Click to jump. Never lose track of which agent is which.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128161;</div>
+      <h3>Shell &amp; agent completion</h3>
+      <p>
+        Tab in Insert mode completes file paths and commands.
+        In an agent session, Tab completes that agent's native slash commands — <code>/compact</code>, <code>/diff</code>, <code>/undo</code>.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128203;</div>
+      <h3>Pane notes</h3>
+      <p>
+        Press <code>m</code> to annotate any pane — what this agent is working on,
+        which branch, what to check next. Shown in the pane header at a glance.
+      </p>
+    </div>
+  </div>
+</section>
+
+<hr />
+
+<!-- Modes -->
+<section id="modes">
+  <div class="section-label">Modal input</div>
+  <h2>One bar, four modes</h2>
+  <p class="section-sub">
+    The input bar at the bottom is always visible. Like vim, you're always in a mode —
+    and each mode does exactly one thing well.
+  </p>
+  <div class="modes-grid">
+    <div class="mode-row">
+      <span class="mode-badge normal">NORMAL</span>
+      <p>
+        <strong>The default. Navigate without disturbing any agent.</strong>
+        <code>hjkl</code> / arrows move between panes and rows.
+        <code>gg</code> / <code>G</code> / <code>Ctrl+D/U</code> scroll output.
+        <code>n</code> new pane, <code>s</code> split, <code>q</code> close, <code>r</code> rename.
+        Nothing you press here reaches any shell.
+      </p>
+    </div>
+    <div class="mode-row">
+      <span class="mode-badge insert">INSERT</span>
+      <p>
+        <strong>Press <kbd>i</kbd> — type into the active shell.</strong>
+        Enter submits; arrows browse local history; Tab completes.
+        If an AI agent is detected in this pane, Tab shows its slash commands.
+        <kbd>Esc</kbd> returns to Normal instantly.
+      </p>
+    </div>
+    <div class="mode-row">
+      <span class="mode-badge ai" style="background:rgba(188,140,255,.18);color:#bc8cff;border:1px solid rgba(188,140,255,.45)">AI</span>
+      <p>
+        <strong>Press <kbd>a</kbd> — talk to the workspace AI.</strong>
+        Dispatch commands to sessions, manage the workspace in natural language.
+        Broadcasts and multi-step plans show a confirmation step before executing.
+        Works with any LLM or as a plain regex dispatcher with no model at all.
+        <kbd>Esc</kbd> returns to Normal.
+      </p>
+    </div>
+    <div class="mode-row">
+      <span class="mode-badge terminal">TERMINAL</span>
+      <p>
+        <strong>Press <kbd>Ctrl+\</kbd> — xterm.js owns the keyboard completely.</strong>
+        Every keystroke goes to the PTY: vim keybindings, mouse selection, raw escape sequences.
+        Use when a TUI app or agent needs unintercepted input.
+        <kbd>Ctrl+\</kbd> returns to Normal.
+      </p>
+    </div>
+    <div class="mode-row">
+      <span class="mode-badge find">FIND</span>
+      <p>
+        <strong>Press <kbd>/</kbd> — fuzzy search all sessions.</strong>
+        Filter by name, group, cwd. Arrow keys navigate the list.
+        <kbd>Enter</kbd> jumps to the pane and scrolls the waterfall to it.
+        <kbd>Esc</kbd> cancels with no change.
+      </p>
+    </div>
+  </div>
+</section>
+
+<hr />
+
+<!-- Config -->
+<section id="config">
+  <div class="section-label">Configuration</div>
+  <h2>YAML config, Alacritty-style</h2>
+  <p class="section-sub">
+    All behavior is configurable. Edit <code>~/.config/fluxtty/config.yaml</code>
+    and changes apply immediately — no restart needed.
+  </p>
+  <div class="code-block">
+    <pre><span class="cm"># ~/.config/fluxtty/config.yaml</span>
+
+<span class="ky">font</span>:
+  <span class="ky">normal</span>: { <span class="ky">family</span>: <span class="st">"JetBrains Mono"</span>, <span class="ky">style</span>: Regular }
+  <span class="ky">size</span>: <span class="nu">13.0</span>
+
+<span class="ky">colors</span>:
+  <span class="ky">primary</span>:
+    <span class="ky">background</span>: <span class="st">"#0d1117"</span>
+    <span class="ky">foreground</span>: <span class="st">"#e6edf3"</span>
+
+<span class="ky">input</span>:
+  <span class="ky">live_typing</span>: <span class="kw">false</span>   <span class="cm"># true: keystrokes forwarded immediately</span>
+
+<span class="ky">workspace_ai</span>:
+  <span class="ky">model</span>: <span class="st">none</span>           <span class="cm"># none | claude-sonnet-4-6 | gpt-4o | ollama/llama3</span>
+  <span class="ky">api_key_env</span>: <span class="st">ANTHROPIC_API_KEY</span>
+
+<span class="ky">waterfall</span>:
+  <span class="ky">row_height_mode</span>: <span class="st">viewport</span>  <span class="cm"># viewport | fixed</span>
+  <span class="ky">new_pane_focus</span>: <span class="kw">true</span>
+
+<span class="ky">keybindings</span>:
+  - { <span class="ky">key</span>: N, <span class="ky">mods</span>: Control, <span class="ky">action</span>: NewTerminal }
+  - { <span class="ky">key</span>: H, <span class="ky">mods</span>: Control, <span class="ky">action</span>: SplitHorizontal }
+  - { <span class="ky">key</span>: Comma, <span class="ky">mods</span>: Control, <span class="ky">action</span>: OpenSettings }</pre>
+  </div>
+</section>
+
+<hr />
+
+<!-- AI Providers -->
+<section>
+  <div class="section-label">Workspace AI</div>
+  <h2>Works with any LLM</h2>
+  <p class="section-sub">
+    Set <code>workspace_ai.model</code> and the AI manages your terminal sessions for you.
+    Or leave it as <code>none</code> and use the built-in regex command parser.
+  </p>
+  <div class="stack-grid">
+    <div class="stack-item"><div class="stack-dot" style="background:var(--magenta)"></div>Anthropic Claude</div>
+    <div class="stack-item"><div class="stack-dot" style="background:var(--green)"></div>OpenAI GPT / o-series</div>
+    <div class="stack-item"><div class="stack-dot" style="background:var(--blue)"></div>Google Gemini</div>
+    <div class="stack-item"><div class="stack-dot" style="background:var(--yellow)"></div>Ollama (local)</div>
+    <div class="stack-item"><div class="stack-dot" style="background:var(--cyan)"></div>claude CLI subprocess</div>
+    <div class="stack-item"><div class="stack-dot" style="background:var(--muted)"></div>No model (regex parser)</div>
+  </div>
+</section>
+
+<hr />
+
+<!-- Keybindings -->
+<section id="keybindings">
+  <div class="section-label">Keyboard</div>
+  <h2>Key reference</h2>
+  <p class="section-sub">All bindings are configurable in <code>config.yaml</code>.</p>
+
+  <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1.25rem;font-family:var(--font-mono)">
+    Normal mode navigation
+  </p>
+  <div class="kb-grid" style="margin-bottom:2rem">
+    <div class="kb-row"><span class="kb-desc">Next / prev row</span><div class="kb-keys"><kbd>j</kbd><kbd>k</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Next / prev pane</span><div class="kb-keys"><kbd>h</kbd><kbd>l</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">New terminal</span><div class="kb-keys"><kbd>n</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Split row</span><div class="kb-keys"><kbd>s</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Close pane</span><div class="kb-keys"><kbd>q</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Toggle sidebar</span><div class="kb-keys"><kbd>b</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Find pane</span><div class="kb-keys"><kbd>/</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Workspace AI command</span><div class="kb-keys"><kbd>:</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Enter insert mode</span><div class="kb-keys"><kbd>i</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Raw terminal mode</span><div class="kb-keys"><kbd>Ctrl</kbd><kbd>\</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Scroll to top / bottom</span><div class="kb-keys"><kbd>gg</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Half page down / up</span><div class="kb-keys"><kbd>Ctrl+D</kbd></div></div>
+  </div>
+
+  <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1.25rem;font-family:var(--font-mono)">
+    Global keybindings
+  </p>
+  <div class="kb-grid">
+    <div class="kb-row"><span class="kb-desc">New terminal</span><div class="kb-keys"><kbd>Ctrl</kbd><kbd>N</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Split horizontal</span><div class="kb-keys"><kbd>Ctrl</kbd><kbd>H</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Toggle sidebar</span><div class="kb-keys"><kbd>Ctrl</kbd><kbd>B</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Settings panel</span><div class="kb-keys"><kbd>Ctrl</kbd><kbd>,</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Rename session</span><div class="kb-keys"><kbd>Ctrl</kbd><kbd>R</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Copy selection</span><div class="kb-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>C</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Paste</span><div class="kb-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>V</kbd></div></div>
+    <div class="kb-row"><span class="kb-desc">Font size +/-/reset</span><div class="kb-keys"><kbd>Ctrl</kbd><kbd>+</kbd></div></div>
+  </div>
+</section>
+
+<hr />
+
+<!-- Stack -->
+<section>
+  <div class="section-label">Built with</div>
+  <h2>Solid foundations</h2>
+  <p class="section-sub">
+    No Electron. No heavy frameworks. Rust backend, vanilla TypeScript frontend.
+  </p>
+  <div class="stack-grid">
+    <div class="stack-item"><div class="stack-dot" style="background:var(--red)"></div>Tauri 2 (Rust)</div>
+    <div class="stack-item"><div class="stack-dot" style="background:var(--blue)"></div>xterm.js</div>
+    <div class="stack-item"><div class="stack-dot" style="background:var(--yellow)"></div>portable-pty</div>
+    <div class="stack-item"><div class="stack-dot" style="background:var(--green)"></div>Vite + TypeScript</div>
+    <div class="stack-item"><div class="stack-dot" style="background:var(--magenta)"></div>serde-yaml</div>
+    <div class="stack-item"><div class="stack-dot" style="background:var(--cyan)"></div>notify (hot-reload)</div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <p>
+    <a href="https://github.com/wangzewang/fluxtty">fluxtty</a> &mdash;
+    MIT License &mdash;
+    Built with Tauri + xterm.js
+  </p>
+</footer>
+
+</body>
+</html>
