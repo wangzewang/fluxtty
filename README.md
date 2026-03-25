@@ -9,6 +9,58 @@ A modal terminal workspace for developers running many concurrent AI agent sessi
 ![Tauri](https://img.shields.io/badge/Tauri-2.x-orange)
 ![Rust](https://img.shields.io/badge/Rust-1.77%2B-orange)
 
+**[Live demo and landing page →](https://wangzewang.github.io/fluxtty/)**
+
+---
+
+## Demo
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  api · frontend · infra                          [sidebar]      │
+├──────────────────────────────┬──────────────────────────────────┤
+│ ● api                 ~/api  │ ● frontend          ~/frontend   │
+│                              │                                  │
+│ $ claude                     │ $ npm run dev                    │
+│ ✻ Welcome to Claude Code     │                                  │
+│   Claude ❯ _                 │ > Local: http://localhost:5173   │
+│                              │                                  │
+├──────────────────────────────┴──────────────────────────────────┤
+│ ● worker                                         ~/worker       │
+│                                                                  │
+│ $ cargo test                                                     │
+│   running 24 tests ......................                        │
+│                                                                  │
+├──────────────────────────────────────────────────────────────────┤
+│ NORMAL  navigate: hjkl · i: insert · a: AI · /: find           │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Press `a` — chat with your workspace AI:**
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ AI ❯  run the test suite in worker, then report back            │
+└──────────────────────────────────────────────────────────────────┘
+  Plan: run `cargo test` in worker  [y/n]
+```
+
+**Press `i` — type directly into the active shell:**
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ INSERT [2/3] [claude] ❯  /review                                │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Press `/` — jump to any pane by name:**
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ FIND /  work                                                     │
+│  ● worker · infra · idle · ~/worker                             │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+For the full interactive demo visit **[wangzewang.github.io/fluxtty](https://wangzewang.github.io/fluxtty/)**.
+
 ---
 
 ## Why
