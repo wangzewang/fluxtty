@@ -71,8 +71,8 @@ The input bar sits at the bottom of the screen, always visible. It has five mode
 - TUI apps (vim, htop, lazygit, etc.) are detected automatically via alternate screen sequences (`\x1b[?1049h`) and switch to Terminal mode; returning to the shell switches back to Insert
 
 **Insert mode** has two sub-modes, controlled by `input.live_typing` in config:
-- `live_typing: false` (default) — buffered: type a full command, `Enter` to send
-- `live_typing: true` — every keystroke forwarded to the PTY immediately, including arrows, Tab, `Ctrl+C/D`
+- `live_typing: true` (default) — every keystroke forwarded to the PTY immediately, including arrows, Tab, `Ctrl+C/D`
+- `live_typing: false` — buffered: type a full command, `Enter` to send
 
 ### Session identity
 
@@ -170,7 +170,7 @@ Changes are written to `~/.config/fluxtty/config.yaml` and applied live without 
 ### Build from source
 
 ```bash
-git clone https://github.com/your-org/fluxtty
+git clone https://github.com/wangzewang/fluxtty
 cd fluxtty
 npm install
 npm run tauri build
@@ -197,8 +197,7 @@ window:
   startup_mode: windowed      # windowed | maximized | fullscreen
 
 font:
-  normal: { family: "JetBrains Mono", style: Regular }
-  bold:   { family: "JetBrains Mono", style: Bold }
+  family: "JetBrains Mono"
   size: 13.0
 
 colors:
@@ -226,7 +225,7 @@ shell:
   args: []
 
 input:
-  live_typing: false   # true = every keystroke forwarded immediately
+  live_typing: true    # false = buffered, send on Enter
 
 workspace_ai:
   model: none          # none | claude-sonnet-4-6 | gpt-4o | gemini-2.0-flash | ollama/llama3 | claude-cli
@@ -364,7 +363,6 @@ fluxtty/
 │       ├── pty.rs              # PTY spawn, resize, kill, I/O forwarding
 │       ├── session.rs          # PaneInfo state, layout
 │       ├── config.rs           # YAML load, validation, file watcher
-│       ├── persistence.rs      # Workspace snapshots, scrollback
 │       └── ipc.rs              # Tauri commands and events
 └── CLAUDE.md                   # Architecture decisions and constraints
 ```
@@ -374,6 +372,12 @@ fluxtty/
 ## Contributing
 
 Read `CLAUDE.md` before opening a pull request. It documents the core design decisions — the layout model, modal input system, and the scope of the Workspace AI — that should be understood before making significant changes.
+
+---
+
+## Inspiration
+
+The waterfall layout idea — terminals stacking vertically, each filling the viewport as you scroll — was shamelessly stolen from [`infinite-scroll`](https://github.com/gaojude/infinite-scroll). I prefer the word "inspired."
 
 ---
 
