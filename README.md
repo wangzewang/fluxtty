@@ -13,56 +13,6 @@ A modal terminal workspace for developers running many concurrent AI agent sessi
 
 ---
 
-## Demo
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  api · frontend · infra                          [sidebar]      │
-├──────────────────────────────┬──────────────────────────────────┤
-│ ● api                 ~/api  │ ● frontend          ~/frontend   │
-│                              │                                  │
-│ $ claude                     │ $ npm run dev                    │
-│ ✻ Welcome to Claude Code     │                                  │
-│   Claude ❯ _                 │ > Local: http://localhost:5173   │
-│                              │                                  │
-├──────────────────────────────┴──────────────────────────────────┤
-│ ● worker                                         ~/worker       │
-│                                                                  │
-│ $ cargo test                                                     │
-│   running 24 tests ......................                        │
-│                                                                  │
-├──────────────────────────────────────────────────────────────────┤
-│ NORMAL  navigate: hjkl · i: insert · a: AI · /: find           │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-**Press `a` — chat with your workspace AI:**
-```
-┌──────────────────────────────────────────────────────────────────┐
-│ AI ❯  run the test suite in worker, then report back            │
-└──────────────────────────────────────────────────────────────────┘
-  Plan: run `cargo test` in worker  [y/n]
-```
-
-**Press `i` — type directly into the active shell:**
-```
-┌──────────────────────────────────────────────────────────────────┐
-│ INSERT [2/3] [claude] ❯  /review                                │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-**Press `/` — jump to any pane by name:**
-```
-┌──────────────────────────────────────────────────────────────────┐
-│ FIND /  work                                                     │
-│  ● worker · infra · idle · ~/worker                             │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-For the full interactive demo visit **[wangzewang.github.io/fluxtty](https://wangzewang.github.io/fluxtty/)**.
-
----
-
 ## Why
 
 Modern AI-assisted development looks different from traditional coding. You are no longer just in one editor. You have multiple `claude` sessions running in parallel, each working on a different part of the codebase. You have dev servers, test runners, database shells, and CI watchers all running at once. Your job is to supervise them — review outputs, redirect agents, intervene when things go wrong, and dispatch new instructions.
