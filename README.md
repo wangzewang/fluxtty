@@ -12,7 +12,7 @@ A modal terminal workspace for developers running many concurrent AI agent sessi
 ![Tauri](https://img.shields.io/badge/Tauri-2.x-orange)
 ![Rust](https://img.shields.io/badge/Rust-1.77%2B-orange)
 
-<video src="https://github.com/user-attachments/assets/6b87c695-d5bc-4aa5-8a6f-cbd2ad973b99" controls autoplay loop muted width="100%"></video>
+<video src="https://github.com/user-attachments/assets/6b9ba19d-14c2-43d3-8e6a-6d3353674bb6" controls autoplay loop muted width="100%"></video>
 
 **[Live demo and landing page →](https://wangzewang.github.io/fluxtty/)**
 
