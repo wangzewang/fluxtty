@@ -90,3 +90,90 @@ jobs:
           prerelease: ${{ env.RELEASE_PRERELEASE }}
           generateReleaseNotes: true
           args: ${{ matrix.args }}
+
+  update-homebrew-tap:
+    name: Update Homebrew tap
+    needs: publish-tauri
+    runs-on: macos-latest
+    if: ${{ github.event_name == 'push' || !fromJSON(inputs.draft) }}
+
+    env:
+      TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+
+    steps:
+      - name: Derive version
+        id: version
+        run: echo "version=${TAG_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download macOS DMG assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "$TAG_NAME" \
+            --repo wangzewang/fluxtty \
+            --pattern "*.dmg" \
+            --dir ./dmg-assets
+
+      - name: Compute SHA256
+        id: sha
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARM64=$(shasum -a 256 "./dmg-assets/fluxtty_${VERSION}_aarch64.dmg" | cut -d' ' -f1)
+          X86_64=$(shasum -a 256 "./dmg-assets/fluxtty_${VERSION}_x86_64.dmg" | cut -d' ' -f1)
+          echo "arm64=$ARM64" >> "$GITHUB_OUTPUT"
+          echo "x86_64=$X86_64" >> "$GITHUB_OUTPUT"
+
+      - name: Check out homebrew tap
+        uses: actions/checkout@v6
+        with:
+          repository: wangzewang/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Write cask file
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARM64_SHA="${{ steps.sha.outputs.arm64 }}"
+          X86_64_SHA="${{ steps.sha.outputs.x86_64 }}"
+          mkdir -p homebrew-tap/Casks
+          python3 - <<PYEOF
+import os
+version = os.environ['VERSION']
+arm64 = os.environ['ARM64_SHA']
+x86 = os.environ['X86_64_SHA']
+content = f'''cask "fluxtty" do
+  version "{version}"
+
+  on_arm do
+    url "https://github.com/wangzewang/fluxtty/releases/download/v#{{version}}/fluxtty_#{{version}}_aarch64.dmg"
+    sha256 "{arm64}"
+  end
+
+  on_intel do
+    url "https://github.com/wangzewang/fluxtty/releases/download/v#{{version}}/fluxtty_#{{version}}_x86_64.dmg"
+    sha256 "{x86}"
+  end
+
+  name "fluxtty"
+  desc "Multi-session developer workspace terminal"
+  homepage "https://github.com/wangzewang/fluxtty"
+
+  app "fluxtty.app"
+end
+'''
+with open('homebrew-tap/Casks/fluxtty.rb', 'w') as f:
+    f.write(content)
+PYEOF
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ARM64_SHA: ${{ steps.sha.outputs.arm64 }}
+          X86_64_SHA: ${{ steps.sha.outputs.x86_64 }}
+
+      - name: Push cask update
+        working-directory: homebrew-tap
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/fluxtty.rb
+          git commit -m "chore: update fluxtty to ${{ steps.version.outputs.version }}"
+          git push
