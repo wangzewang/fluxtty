@@ -94,66 +94,18 @@ jobs:
   update-homebrew-tap:
     name: Update Homebrew tap
     needs: publish-tauri
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' || !fromJSON(inputs.draft) }}
 
     env:
       TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
 
     steps:
-      - name: Derive version
-        id: version
-        run: echo "version=${TAG_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Download macOS DMG assets
+      - name: Trigger homebrew-tap update
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
-          gh release download "$TAG_NAME" \
-            --repo wangzewang/fluxtty \
-            --pattern "*.dmg" \
-            --dir ./dmg-assets
-
-      - name: Compute SHA256
-        id: sha
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          ARM64=$(shasum -a 256 "./dmg-assets/fluxtty_${VERSION}_aarch64.dmg" | cut -d' ' -f1)
-          X86_64=$(shasum -a 256 "./dmg-assets/fluxtty_${VERSION}_x86_64.dmg" | cut -d' ' -f1)
-          echo "arm64=$ARM64" >> "$GITHUB_OUTPUT"
-          echo "x86_64=$X86_64" >> "$GITHUB_OUTPUT"
-
-      - name: Check out homebrew tap
-        uses: actions/checkout@v6
-        with:
-          repository: wangzewang/homebrew-tap
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          path: homebrew-tap
-
-      - name: Update cask version and sha256
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          ARM64_SHA="${{ steps.sha.outputs.arm64 }}"
-          X86_64_SHA="${{ steps.sha.outputs.x86_64 }}"
-          CASK="homebrew-tap/Casks/fluxtty.rb"
-
-          # Update version
-          sed -i '' "s/version \".*\"/version \"${VERSION}\"/" "$CASK"
-
-          # Update sha256 for arm (aarch64) — first occurrence
-          sed -i '' "0,/sha256 \".*\"/{s/sha256 \".*\"/sha256 \"${ARM64_SHA}\"/}" "$CASK"
-
-          # Update sha256 for intel (x86_64) — second occurrence
-          awk -v sha="${X86_64_SHA}" '
-            /sha256 ".*"/ && !done2 { if (done1) { sub(/sha256 ".*"/, "sha256 \"" sha "\""); done2=1 } else done1=1 }
-            { print }
-          ' "$CASK" > "$CASK.tmp" && mv "$CASK.tmp" "$CASK"
-
-      - name: Push cask update
-        working-directory: homebrew-tap
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Casks/fluxtty.rb
-          git commit -m "chore: update fluxtty to ${{ steps.version.outputs.version }}"
-          git push
+          VERSION="${TAG_NAME#v}"
+          gh workflow run update-cask.yml \
+            --repo wangzewang/homebrew-tap \
+            --field version="$VERSION"
