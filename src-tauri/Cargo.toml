@@ -1,6 +1,6 @@
 [package]
 name = "fluxtty"
-version = "0.1.0"
+version = "0.1.1"
 description = "Multi-session developer workspace terminal"
 authors = ["fluxtty"]
 license = "MIT"
