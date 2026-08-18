@@ -1,6 +1,15 @@
 # fluxtty
 
 <p align="center">
+  <a href="README.md">English</a> ·
+  <a href="README.es-ES.md">Español</a> ·
+  <a href="README.zh-CN.md">简体中文</a> ·
+  <a href="README.fr.md">Français</a> ·
+  <a href="README.de.md">Deutsch</a> ·
+  <a href="README.it.md">Italiano</a>
+</p>
+
+<p align="center">
   <img src="src-tauri/icons/icon.png" width="112" height="112" alt="fluxtty" />
 </p>
 

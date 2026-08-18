@@ -1,19 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>fluxtty - Vim-modal terminal workspace for AI development</title>
-  <meta name="description" content="fluxtty is a keyboard-driven terminal workspace for supervising AI coding agents with vim-style modes, waterfall rows, session identity, notes, and workspace commands." />
-  <meta name="keywords" content="fluxtty, AI terminal, AI coding agent workspace, vim modal terminal, Tauri terminal, xterm.js, multi session terminal, agent supervision, developer tools" />
+  <title>fluxtty - 面向 AI 开发的 vim 模态终端工作区</title>
+  <meta name="description" content="fluxtty 是一个键盘驱动的终端工作区，通过 vim 风格的模式、瀑布式行布局、会话身份、备注和工作区命令来监督 AI 编程智能体。" />
+  <meta name="keywords" content="fluxtty, AI 终端, AI 编程智能体工作区, vim 模态终端, Tauri 终端, xterm.js, 多会话终端, 智能体监督, 开发者工具" />
   <meta name="author" content="amoswzw" />
   <meta name="application-name" content="fluxtty" />
   <meta name="theme-color" content="#07090d" />
   <meta name="color-scheme" content="dark" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-  <link rel="canonical" href="https://amoswzw.github.io/fluxtty/" />
+  <link rel="canonical" href="https://amoswzw.github.io/fluxtty/index.zh-CN.html" />
   <link rel="alternate" hreflang="en" href="https://amoswzw.github.io/fluxtty/" />
   <link rel="alternate" hreflang="es-ES" href="https://amoswzw.github.io/fluxtty/index.es-ES.html" />
   <link rel="alternate" hreflang="zh-CN" href="https://amoswzw.github.io/fluxtty/index.zh-CN.html" />
@@ -28,14 +28,14 @@
   <link rel="alternate" type="text/plain" title="llms.txt" href="llms.txt" />
   <link rel="alternate" type="text/plain" title="Full AI-readable project brief" href="llms-full.txt" />
   <link rel="alternate" type="application/json" title="Machine-readable project metadata" href="project.json" />
-  <meta property="og:title" content="fluxtty - Vim-modal terminal workspace for AI development" />
-  <meta property="og:description" content="A keyboard-driven terminal workspace for supervising AI coding agents with waterfall rows, vim-style modes, session identity, row notes, and workspace command dispatch." />
+  <meta property="og:title" content="fluxtty - 面向 AI 开发的 vim 模态终端工作区" />
+  <meta property="og:description" content="一个键盘驱动的终端工作区，通过瀑布式行布局、vim 风格的模式、会话身份、行备注和工作区命令调度来监督 AI 编程智能体。" />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://amoswzw.github.io/fluxtty/" />
+  <meta property="og:url" content="https://amoswzw.github.io/fluxtty/index.zh-CN.html" />
   <meta property="og:site_name" content="fluxtty" />
-  <meta property="og:locale" content="en_US" />
+  <meta property="og:locale" content="zh_CN" />
+  <meta property="og:locale:alternate" content="en_US" />
   <meta property="og:locale:alternate" content="es_ES" />
-  <meta property="og:locale:alternate" content="zh_CN" />
   <meta property="og:locale:alternate" content="fr_FR" />
   <meta property="og:locale:alternate" content="de_DE" />
   <meta property="og:locale:alternate" content="it_IT" />
@@ -44,12 +44,12 @@
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="fluxtty waterfall terminal workspace preview" />
+  <meta property="og:image:alt" content="fluxtty 瀑布式终端工作区预览" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="fluxtty - Vim-modal terminal workspace for AI development" />
-  <meta name="twitter:description" content="Supervise many AI coding agents from a keyboard-driven terminal workspace with vim-style modes, waterfall rows, session identity, notes, and workspace commands." />
+  <meta name="twitter:title" content="fluxtty - 面向 AI 开发的 vim 模态终端工作区" />
+  <meta name="twitter:description" content="通过键盘驱动的终端工作区，配合 vim 风格的模式、瀑布式行布局、会话身份、备注和工作区命令，同时监督多个 AI 编程智能体。" />
   <meta name="twitter:image" content="https://amoswzw.github.io/fluxtty/og-image.png" />
-  <meta name="twitter:image:alt" content="fluxtty waterfall terminal workspace preview" />
+  <meta name="twitter:image:alt" content="fluxtty 瀑布式终端工作区预览" />
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -65,7 +65,7 @@
           "@id": "https://amoswzw.github.io/fluxtty/#website",
           "name": "fluxtty",
           "url": "https://amoswzw.github.io/fluxtty/",
-          "description": "A vim-modal terminal workspace for AI development.",
+          "description": "一个面向 AI 开发的 vim 模态终端工作区。",
           "inLanguage": "en",
           "publisher": {
             "@id": "https://amoswzw.github.io/fluxtty/#creator"
@@ -73,10 +73,10 @@
         },
         {
           "@type": "WebPage",
-          "@id": "https://amoswzw.github.io/fluxtty/#webpage",
-          "url": "https://amoswzw.github.io/fluxtty/",
-          "name": "fluxtty - Vim-modal terminal workspace for AI development",
-          "description": "fluxtty is a keyboard-driven terminal workspace for supervising AI coding agents with vim-style modes, waterfall rows, session identity, notes, and workspace commands.",
+          "@id": "https://amoswzw.github.io/fluxtty/index.zh-CN.html#webpage",
+          "url": "https://amoswzw.github.io/fluxtty/index.zh-CN.html",
+          "name": "fluxtty - 面向 AI 开发的 vim 模态终端工作区",
+          "description": "fluxtty 是一个键盘驱动的终端工作区，通过 vim 风格的模式、瀑布式行布局、会话身份、备注和工作区命令来监督 AI 编程智能体。",
           "isPartOf": {
             "@id": "https://amoswzw.github.io/fluxtty/#website"
           },
@@ -90,7 +90,7 @@
             "height": 630
           },
           "dateModified": "2026-08-18",
-          "inLanguage": "en"
+          "inLanguage": "zh-CN"
         },
         {
           "@type": "SoftwareApplication",
@@ -102,7 +102,7 @@
           "license": "https://github.com/amoswzw/fluxtty/blob/main/LICENSE",
           "image": "https://amoswzw.github.io/fluxtty/icon.png",
           "screenshot": "https://amoswzw.github.io/fluxtty/og-image.png",
-          "description": "A keyboard-driven terminal workspace for supervising AI coding agents with vim-style modes, waterfall rows, session identity, notes, and workspace command dispatch.",
+          "description": "一个键盘驱动的终端工作区，通过 vim 风格的模式、瀑布式行布局、会话身份、备注和工作区命令调度来监督 AI 编程智能体。",
           "applicationCategory": "DeveloperApplication",
           "applicationSubCategory": "Terminal emulator and AI coding agent workspace",
           "operatingSystem": [
@@ -122,22 +122,22 @@
             "Rust 1.77+"
           ],
           "keywords": [
-            "AI terminal",
-            "AI coding agent workspace",
-            "vim modal terminal",
-            "waterfall terminal",
-            "Tauri terminal",
+            "AI 终端",
+            "AI 编程智能体工作区",
+            "vim 模态终端",
+            "瀑布式终端",
+            "Tauri 终端",
             "xterm.js",
-            "developer productivity"
+            "开发者生产力"
           ],
           "featureList": [
-            "Waterfall terminal rows for many concurrent sessions",
-            "Vim-style Normal, Insert, AI, Terminal, Find, and View modes",
-            "Workspace command dispatch across sessions and groups",
-            "AI agent detection for claude, codex, aider, gemini, opencode, goose, cursor, qwen, amp, crush, and openhands",
-            "Session identity with name, group, cwd, status, last command, exit code, tmux session, alternate-screen state, and agent type",
-            "Row notes and restore snapshots",
-            "Hot-reload YAML configuration"
+            "用于同时处理多个会话的瀑布式终端行",
+            "vim 风格的普通、插入、AI、终端、查找和视图模式",
+            "跨会话和分组的工作区命令调度",
+            "AI 智能体检测，支持 claude、codex、aider、gemini、opencode、goose、cursor、qwen、amp、crush 和 openhands",
+            "会话身份，包含名称、分组、cwd、状态、上一条命令、退出码、tmux 会话、备用屏幕状态和智能体类型",
+            "行备注和恢复快照",
+            "热重载 YAML 配置"
           ],
           "offers": {
             "@type": "Offer",
@@ -1278,6 +1278,7 @@
       }
     }
   </style>
+  </style>
 </head>
 <body>
   <div class="page-shell">
@@ -1285,15 +1286,15 @@
       <a class="header-logo" href="#">fluxtty</a>
       <span class="header-session-count">waterfall workspace</span>
       <span class="header-spacer"></span>
-      <a class="header-btn" href="#features">Features</a>
-      <a class="header-btn" href="#modes">Modes</a>
-      <a class="header-btn" href="#install">Install</a>
+      <a class="header-btn" href="#features">功能</a>
+      <a class="header-btn" href="#modes">模式</a>
+      <a class="header-btn" href="#install">安装</a>
       <details class="lang-switch">
-        <summary class="lang-switch-toggle" aria-label="Select language">EN</summary>
+        <summary class="lang-switch-toggle" aria-label="选择语言">中文</summary>
         <div class="lang-switch-menu">
-          <a href="index.html" hreflang="en" lang="en" aria-current="true">English</a>
+          <a href="index.html" hreflang="en" lang="en">English</a>
           <a href="index.es-ES.html" hreflang="es-ES" lang="es">Español</a>
-          <a href="index.zh-CN.html" hreflang="zh-CN" lang="zh">简体中文</a>
+          <a href="index.zh-CN.html" hreflang="zh-CN" lang="zh" aria-current="true">简体中文</a>
           <a href="index.fr.html" hreflang="fr" lang="fr">Français</a>
           <a href="index.de.html" hreflang="de" lang="de">Deutsch</a>
           <a href="index.it.html" hreflang="it" lang="it">Italiano</a>
@@ -1306,13 +1307,13 @@
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-header">
           <div class="eyebrow">waterfall terminal · modal input · workspace AI</div>
-          <h1 id="hero-title">A vim-modal terminal<br>for AI development.</h1>
+          <h1 id="hero-title">面向 AI 开发的<br>vim 模态终端。</h1>
           <p class="hero-sub">
-            You don't just write code anymore — you direct agents. fluxtty is a keyboard-driven workspace for supervising many AI sessions at once, with the modal efficiency that made vim indispensable.
+            你不再只是写代码——你在指挥智能体。fluxtty 是一个键盘驱动的工作区，用于同时监督多个 AI 会话，拥有让 vim 变得不可或缺的那种模态效率。
           </p>
           <div class="hero-actions">
-            <a class="cta primary" href="https://github.com/amoswzw/fluxtty/releases/latest">Download latest</a>
-            <a class="cta" href="https://github.com/amoswzw/fluxtty">View source</a>
+            <a class="cta primary" href="https://github.com/amoswzw/fluxtty/releases/latest">下载最新版本</a>
+            <a class="cta" href="https://github.com/amoswzw/fluxtty">查看源码</a>
           </div>
         </div>
 
@@ -1346,30 +1347,30 @@
       <section class="section alt" id="idea">
         <div class="section-inner">
           <div class="section-header">
-            <div class="section-label">The idea</div>
-            <h2>You used to write code.<br>Now you supervise agents.</h2>
+            <div class="section-label">理念</div>
+            <h2>你曾经写代码。<br>现在你监督智能体。</h2>
             <p class="section-sub">
-              When AI writes the code, your job shifts from typing to directing. You need a workspace built for that — not an editor with a terminal bolted on.
+              当 AI 编写代码时，你的工作就从打字转向了指挥。你需要一个为此而生的工作区——而不是一个硬塞了终端的编辑器。
             </p>
           </div>
           <div class="idea-grid">
             <div class="idea-col">
-              <h3>Before</h3>
+              <h3>以前</h3>
               <ul>
-                <li>Write code manually in an editor.</li>
-                <li>One terminal for the occasional command.</li>
-                <li>Run tests yourself, read output, patch manually.</li>
-                <li>Context-switch between editor, browser, terminal.</li>
+                <li>在编辑器里手动写代码。</li>
+                <li>一个终端，偶尔敲几条命令。</li>
+                <li>自己跑测试、看输出、手动打补丁。</li>
+                <li>在编辑器、浏览器、终端之间来回切换上下文。</li>
               </ul>
             </div>
             <div class="idea-arrow">→</div>
             <div class="idea-col now">
-              <h3>Now</h3>
+              <h3>现在</h3>
               <ul>
-                <li>Agents write; you review, steer, and unblock.</li>
-                <li>8–12 sessions open in parallel: agents, servers, shells.</li>
-                <li>Monitor outputs, redirect agents, course-correct fast.</li>
-                <li>The terminal is the entire workspace.</li>
+                <li>智能体负责编写；你负责审阅、引导和解决阻塞。</li>
+                <li>8–12 个会话并行打开：智能体、服务器、shell。</li>
+                <li>监控输出，重新引导智能体，快速纠正方向。</li>
+                <li>终端就是整个工作区。</li>
               </ul>
             </div>
           </div>
@@ -1379,62 +1380,62 @@
       <section class="section" id="features">
         <div class="section-inner">
           <div class="section-header">
-            <div class="section-label">Features</div>
-            <h2>Every primitive built for supervising agents at scale.</h2>
+            <div class="section-label">功能</div>
+            <h2>为大规模监督智能体而生的每一个原语。</h2>
             <p class="section-sub">
-              Not a terminal skin. The core is row-based layout, session identity, explicit modes, and PTY-safe input routing — built to handle 10 open agents without losing track of any of them.
+              这不只是终端皮肤。核心在于基于行的布局、会话身份、明确的模式以及 PTY 安全的输入路由——足以支撑 10 个智能体同时运行而不迷失其中任何一个。
             </p>
           </div>
           <div class="feature-grid">
             <article class="feature-card">
               <span class="feature-icon">ROW</span>
-              <h3>Waterfall rows</h3>
-              <p>Rows stack vertically. Horizontal splits live inside a row. When there are many rows, the workspace scroll becomes the layout.</p>
+              <h3>瀑布式行布局</h3>
+              <p>行纵向堆叠。水平分割存在于行内部。当行数很多时，工作区的滚动本身就成为了布局方式。</p>
             </article>
             <article class="feature-card">
               <span class="feature-icon">MODE</span>
-              <h3>Modal input bar</h3>
-              <p>Normal, Insert, AI, Terminal, Find, and View modes are explicit states. The input bar changes label, prompt, and key routing with the current mode.</p>
+              <h3>模态输入栏</h3>
+              <p>普通、插入、AI、终端、查找和视图模式都是明确的状态。输入栏会随当前模式改变标签、提示符和按键路由。</p>
             </article>
             <article class="feature-card">
               <span class="feature-icon">FIND</span>
-              <h3>Pane selector</h3>
-              <p><code>/</code> opens fuzzy search over pane name, group, cwd, and status. Arrow keys or <code>j/k</code> move; Enter focuses the pane.</p>
+              <h3>面板选择器</h3>
+              <p><code>/</code> 打开对面板名称、分组、cwd 和状态的模糊搜索。方向键或 <code>j/k</code> 移动；Enter 聚焦该面板。</p>
             </article>
             <article class="feature-card">
               <span class="feature-icon">PTY</span>
-              <h3>xterm.js panes</h3>
-              <p>The panes are real xterm.js terminals backed by Tauri and portable-pty, with raw terminal mode for TUIs and full-screen apps.</p>
+              <h3>xterm.js 面板</h3>
+              <p>这些面板是由 Tauri 和 portable-pty 支撑的真实 xterm.js 终端，为 TUI 和全屏应用提供原始终端模式。</p>
             </article>
             <article class="feature-card">
               <span class="feature-icon">TAB</span>
-              <h3>Shell and slash completion</h3>
-              <p>Tab completes commands and paths through the Rust backend. Agent panes switch slash completion to the detected agent's command list.</p>
+              <h3>Shell 与斜杠命令补全</h3>
+              <p>Tab 通过 Rust 后端补全命令和路径。智能体面板会将斜杠命令补全切换为所检测到智能体的命令列表。</p>
             </article>
             <article class="feature-card">
               <span class="feature-icon">AI</span>
-              <h3>Agent detection</h3>
-              <p>Detected agents include claude, codex, aider, gemini, opencode, goose, cursor, qwen, amp, crush, and openhands.</p>
+              <h3>智能体检测</h3>
+              <p>可检测的智能体包括 claude、codex、aider、gemini、opencode、goose、cursor、qwen、amp、crush 和 openhands。</p>
             </article>
             <article class="feature-card">
               <span class="feature-icon">ID</span>
-              <h3>Session identity</h3>
-              <p>Panes track name, group, cwd, status, last command, last exit code, tmux session, alternate-screen state, and agent type.</p>
+              <h3>会话身份</h3>
+              <p>面板会追踪名称、分组、cwd、状态、上一条命令、上一次退出码、tmux 会话、备用屏幕状态和智能体类型。</p>
             </article>
             <article class="feature-card">
               <span class="feature-icon">CMD</span>
-              <h3>Workspace commands</h3>
-              <p>The action layer supports run, read, pipeline, broadcast, groups, new, rename, close, split, focus, note, clear, kill, paste, and agent-send.</p>
+              <h3>工作区命令</h3>
+              <p>动作层支持运行、读取、编排流水线、广播、分组、新建、重命名、关闭、分割、聚焦、备注、清空、终止、粘贴以及向智能体发送输入。</p>
             </article>
             <article class="feature-card">
               <span class="feature-icon">NOTE</span>
-              <h3>Row notes and restore</h3>
-              <p><code>m</code> opens the row note pane. Row notes and layout are included in the workspace snapshot when restore is enabled.</p>
+              <h3>行备注与恢复</h3>
+              <p><code>m</code> 打开行备注面板。启用恢复功能时，行备注和布局都会包含在工作区快照中。</p>
             </article>
             <article class="feature-card">
               <span class="feature-icon">YML</span>
-              <h3>Hot-reload config</h3>
-              <p>Window, font, colors, cursor, shell, tmux, input, Workspace AI, waterfall, persistence, and session defaults live in YAML.</p>
+              <h3>配置热重载</h3>
+              <p>窗口、字体、颜色、光标、shell、tmux、输入、工作区 AI、瀑布布局、持久化以及会话默认值，均存放于 YAML 中。</p>
             </article>
           </div>
         </div>
@@ -1443,16 +1444,16 @@
       <section class="section alt" id="modes">
         <div class="section-inner">
           <div class="section-header">
-            <div class="section-label">Modes</div>
-            <h2>One mode. One purpose. No ambiguity.</h2>
-            <p class="section-sub">Each mode has a color, a label, and a distinct routing rule. The input bar shows exactly where your keystrokes go — to the workspace, to a shell, to an agent, or to raw xterm.</p>
+            <div class="section-label">模式</div>
+            <h2>一种模式，一种目的，没有歧义。</h2>
+            <p class="section-sub">每种模式都有各自的颜色、标签和明确的路由规则。输入栏会准确显示你的按键会去往何处——工作区、shell、智能体，还是原始 xterm。</p>
           </div>
           <div class="mode-list">
-            <div class="mode-row"><span class="mode-pill normal">NORMAL</span><p><strong>Default workspace control.</strong> Move with <code>h j k l</code>, create with <code>n</code>, split with <code>s</code>, close with <code>q</code>, rename with <code>r</code>, note with <code>m</code>, search with <code>/</code>.</p></div>
-            <div class="mode-row"><span class="mode-pill insert">INSERT</span><p><strong>Line editor to PTY.</strong> Press <code>i</code> to type into the active pane. Tab completes shell paths or detected agent slash commands. <code>Esc</code> returns to Normal.</p></div>
-            <div class="mode-row"><span class="mode-pill ai">AI</span><p><strong>Workspace command input.</strong> Press <code>a</code> for the Workspace AI prompt. With <code>model: none</code>, exact built-in commands are parsed; with a model configured, responses can emit structured action blocks.</p></div>
-            <div class="mode-row"><span class="mode-pill terminal">TERMINAL</span><p><strong>Raw xterm control.</strong> Press <code>Ctrl+\</code> when vim, htop, a TUI, or an agent prompt should own the keyboard directly.</p></div>
-            <div class="mode-row"><span class="mode-pill view">VIEW</span><p><strong>Focused row watching.</strong> Press <code>v</code> to isolate the active row while preserving the same pane and mode model.</p></div>
+            <div class="mode-row"><span class="mode-pill normal">NORMAL</span><p><strong>默认的工作区控制。</strong>用 <code>h j k l</code> 移动，用 <code>n</code> 新建，用 <code>s</code> 分割，用 <code>q</code> 关闭，用 <code>r</code> 重命名，用 <code>m</code> 添加备注，用 <code>/</code> 搜索。</p></div>
+            <div class="mode-row"><span class="mode-pill insert">INSERT</span><p><strong>面向 PTY 的行编辑器。</strong>按 <code>i</code> 向当前激活面板输入内容。Tab 补全 shell 路径或所检测到智能体的斜杠命令。<code>Esc</code> 返回普通模式。</p></div>
+            <div class="mode-row"><span class="mode-pill ai">AI</span><p><strong>工作区命令输入。</strong>按 <code>a</code> 进入工作区 AI 提示符。当 <code>model: none</code> 时，会解析精确的内置命令；配置了模型后，回复可以生成结构化的动作代码块。</p></div>
+            <div class="mode-row"><span class="mode-pill terminal">TERMINAL</span><p><strong>原始 xterm 控制。</strong>当 vim、htop、某个 TUI 或智能体提示符需要直接掌控键盘时，按 <code>Ctrl+\</code>。</p></div>
+            <div class="mode-row"><span class="mode-pill view">VIEW</span><p><strong>专注观察某一行。</strong>按 <code>v</code> 隔离显示当前激活行，同时保留相同的面板与模式模型。</p></div>
           </div>
         </div>
       </section>
@@ -1460,13 +1461,13 @@
       <section class="section">
         <div class="section-inner">
           <div class="section-header">
-            <div class="section-label">Workspace AI</div>
-            <h2>Direct your workspace in plain language.</h2>
-            <p class="section-sub">Press <code>a</code> and describe what you want done. The built-in parser handles common actions without a model. Set <code>workspace_ai.model</code> to route natural language to any LLM — Anthropic, OpenAI, Gemini, or local Ollama.</p>
+            <div class="section-label">工作区 AI</div>
+            <h2>用自然语言指挥你的工作区。</h2>
+            <p class="section-sub">按 <code>a</code> 并描述你想要完成的事情。内置解析器无需模型即可处理常见操作。设置 <code>workspace_ai.model</code> 即可将自然语言路由到任意 LLM——Anthropic、OpenAI、Gemini 或本地 Ollama。</p>
           </div>
           <div class="command-grid">
             <div class="command-panel">
-              <div class="command-panel-title">Built-in parser examples</div>
+              <div class="command-panel-title">内置解析器示例</div>
               <pre><span class="term-magenta">a</span> run npm test in frontend
 <span class="term-magenta">a</span> run cargo test in group backend
 <span class="term-magenta">a</span> npm test in all sessions
@@ -1485,9 +1486,9 @@
 <span class="term-magenta">a</span> !agent claude</pre>
             </div>
             <div class="plan-list">
-              <div class="plan-item"><strong>Immediate parser actions</strong><span><code>list</code>, <code>status</code>, <code>help</code>, <code>read</code>, <code>focus</code>, and <code>!agent</code> run immediately.</span></div>
-              <div class="plan-item"><strong>Changing parser actions</strong><span>Run, new, rename, close, close-group, split, group, note, clear, and kill are queued through the shared confirmation flow.</span></div>
-              <div class="plan-item"><strong>LLM action blocks</strong><span>Configured models can emit structured actions including <code>agent-send</code>, <code>run-await</code>, and <code>pipeline</code>.</span></div>
+              <div class="plan-item"><strong>立即执行的解析器动作</strong><span><code>list</code>、<code>status</code>、<code>help</code>、<code>read</code>、<code>focus</code> 和 <code>!agent</code> 会立即执行。</span></div>
+              <div class="plan-item"><strong>会改变状态的解析器动作</strong><span>运行、新建、重命名、关闭、按组关闭、分割、分组、备注、清空和终止都会通过共享的确认流程排队执行。</span></div>
+              <div class="plan-item"><strong>LLM 动作代码块</strong><span>配置好的模型可以生成结构化动作，包括 <code>agent-send</code>、<code>run-await</code> 和 <code>pipeline</code>。</span></div>
             </div>
           </div>
         </div>
@@ -1496,12 +1497,12 @@
       <section class="section alt">
         <div class="section-inner">
           <div class="section-header">
-            <div class="section-label">Confirmation</div>
-            <h2>AI proposes. You execute.</h2>
-            <p class="section-sub">Workspace-changing actions are queued into a plan that you review before anything runs. A single <code>y</code> executes; anything else aborts. You stay in control.</p>
+            <div class="section-label">确认</div>
+            <h2>AI 提议，你来执行。</h2>
+            <p class="section-sub">会改变工作区状态的动作会被排入一个计划，你可以在任何操作执行前先行审阅。按一次 <code>y</code> 即可执行；其他任何输入都会中止。掌控权始终在你手中。</p>
           </div>
           <div class="command-panel">
-            <div class="command-panel-title">Plan preview</div>
+            <div class="command-panel-title">计划预览</div>
             <pre>AI plan (3 actions):
   create new session "api" in group "backend"
   run "cargo test" in group "backend"
@@ -1515,9 +1516,9 @@ execute? y/N<span class="cursor"></span></pre>
       <section class="section" id="install">
         <div class="section-inner">
           <div class="section-header">
-            <div class="section-label">Install</div>
-            <h2>Up in two commands.</h2>
-            <p class="section-sub">Grab the latest release for macOS, Linux, or Windows — or build from source with Tauri. Config lives in a single YAML file.</p>
+            <div class="section-label">安装</div>
+            <h2>两条命令即可上手。</h2>
+            <p class="section-sub">获取适用于 macOS、Linux 或 Windows 的最新版本——或使用 Tauri 从源码构建。配置存放在单个 YAML 文件中。</p>
           </div>
           <div class="install-grid">
             <div class="install-panel">
@@ -1526,20 +1527,20 @@ execute? y/N<span class="cursor"></span></pre>
 brew install --cask fluxtty</pre>
             </div>
             <div class="install-panel">
-              <div class="install-panel-title">Links</div>
-              <a class="download-link" href="https://github.com/amoswzw/fluxtty/releases/latest">Latest release <span>macOS / Linux / Windows</span></a>
-              <a class="download-link" href="https://github.com/amoswzw/fluxtty/releases">All releases <span>older builds</span></a>
-              <a class="download-link" href="https://github.com/amoswzw/fluxtty">Source code <span>Rust + TypeScript</span></a>
+              <div class="install-panel-title">链接</div>
+              <a class="download-link" href="https://github.com/amoswzw/fluxtty/releases/latest">最新版本 <span>macOS / Linux / Windows</span></a>
+              <a class="download-link" href="https://github.com/amoswzw/fluxtty/releases">所有版本 <span>历史构建</span></a>
+              <a class="download-link" href="https://github.com/amoswzw/fluxtty">源代码 <span>Rust + TypeScript</span></a>
             </div>
             <div class="install-panel">
-              <div class="install-panel-title">Build</div>
+              <div class="install-panel-title">构建</div>
               <pre>git clone https://github.com/amoswzw/fluxtty
 cd fluxtty
 npm install
 npm run tauri build</pre>
             </div>
             <div class="install-panel">
-              <div class="install-panel-title">Config</div>
+              <div class="install-panel-title">配置</div>
               <pre>~/.config/fluxtty/config.yaml
 
 input:
@@ -1554,23 +1555,23 @@ workspace_ai:
       <section class="section">
         <div class="section-inner">
           <div class="section-header">
-            <div class="section-label">Keys</div>
-            <h2>Learn it in 30 seconds.</h2>
-            <p class="section-sub">All shortcuts follow vim conventions. Any binding can be remapped in <code>config.yaml</code>.</p>
+            <div class="section-label">按键</div>
+            <h2>30 秒即可上手。</h2>
+            <p class="section-sub">所有快捷键都遵循 vim 惯例。任意绑定都可以在 <code>config.yaml</code> 中重新映射。</p>
           </div>
           <div class="key-grid">
-            <div class="key-row"><span>Move panes and rows</span><kbd>h j k l</kbd></div>
-            <div class="key-row"><span>Insert mode</span><kbd>i</kbd></div>
-            <div class="key-row"><span>AI mode</span><kbd>a</kbd></div>
-            <div class="key-row"><span>View mode</span><kbd>v</kbd></div>
-            <div class="key-row"><span>Find pane</span><kbd>/</kbd></div>
-            <div class="key-row"><span>Inline command</span><kbd>:</kbd></div>
-            <div class="key-row"><span>New terminal</span><kbd>n</kbd></div>
-            <div class="key-row"><span>Split row</span><kbd>s</kbd></div>
-            <div class="key-row"><span>Close pane</span><kbd>q</kbd></div>
-            <div class="key-row"><span>Row note</span><kbd>m</kbd></div>
-            <div class="key-row"><span>Raw terminal</span><kbd>Ctrl+\</kbd></div>
-            <div class="key-row"><span>Settings</span><kbd>Cmd+, / Ctrl+,</kbd></div>
+            <div class="key-row"><span>移动面板与行</span><kbd>h j k l</kbd></div>
+            <div class="key-row"><span>插入模式</span><kbd>i</kbd></div>
+            <div class="key-row"><span>AI 模式</span><kbd>a</kbd></div>
+            <div class="key-row"><span>视图模式</span><kbd>v</kbd></div>
+            <div class="key-row"><span>查找面板</span><kbd>/</kbd></div>
+            <div class="key-row"><span>内联命令</span><kbd>:</kbd></div>
+            <div class="key-row"><span>新建终端</span><kbd>n</kbd></div>
+            <div class="key-row"><span>分割行</span><kbd>s</kbd></div>
+            <div class="key-row"><span>关闭面板</span><kbd>q</kbd></div>
+            <div class="key-row"><span>行备注</span><kbd>m</kbd></div>
+            <div class="key-row"><span>原始终端</span><kbd>Ctrl+\</kbd></div>
+            <div class="key-row"><span>设置</span><kbd>Cmd+, / Ctrl+,</kbd></div>
           </div>
         </div>
       </section>
@@ -1579,11 +1580,11 @@ workspace_ai:
     <footer class="footer">
       <div class="footer-links">
         <a href="https://github.com/amoswzw/fluxtty">GitHub</a>
-        <a href="https://github.com/amoswzw/fluxtty/releases/latest">Latest release</a>
-        <a href="https://github.com/amoswzw/fluxtty/blob/main/CONTRIBUTING.md">Contributing</a>
-        <a href="https://github.com/amoswzw/fluxtty/blob/main/LICENSE">MIT License</a>
+        <a href="https://github.com/amoswzw/fluxtty/releases/latest">最新版本</a>
+        <a href="https://github.com/amoswzw/fluxtty/blob/main/CONTRIBUTING.md">贡献指南</a>
+        <a href="https://github.com/amoswzw/fluxtty/blob/main/LICENSE">MIT 许可证</a>
         <a href="llms.txt">llms.txt</a>
-        <a href="sitemap.xml">Sitemap</a>
+        <a href="sitemap.xml">站点地图</a>
       </div>
       <p>Tauri 2 · xterm.js · portable-pty · Rust · TypeScript · Vite</p>
     </footer>

@@ -1,10 +1,82 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://amoswzw.github.io/fluxtty/</loc>
-    <lastmod>2026-04-17</lastmod>
+    <lastmod>2026-08-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://amoswzw.github.io/fluxtty/" />
+    <xhtml:link rel="alternate" hreflang="es-ES" href="https://amoswzw.github.io/fluxtty/index.es-ES.html" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://amoswzw.github.io/fluxtty/index.zh-CN.html" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://amoswzw.github.io/fluxtty/index.fr.html" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://amoswzw.github.io/fluxtty/index.de.html" />
+    <xhtml:link rel="alternate" hreflang="it" href="https://amoswzw.github.io/fluxtty/index.it.html" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://amoswzw.github.io/fluxtty/" />
+  </url>
+  <url>
+    <loc>https://amoswzw.github.io/fluxtty/index.es-ES.html</loc>
+    <lastmod>2026-08-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://amoswzw.github.io/fluxtty/" />
+    <xhtml:link rel="alternate" hreflang="es-ES" href="https://amoswzw.github.io/fluxtty/index.es-ES.html" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://amoswzw.github.io/fluxtty/index.zh-CN.html" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://amoswzw.github.io/fluxtty/index.fr.html" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://amoswzw.github.io/fluxtty/index.de.html" />
+    <xhtml:link rel="alternate" hreflang="it" href="https://amoswzw.github.io/fluxtty/index.it.html" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://amoswzw.github.io/fluxtty/" />
+  </url>
+  <url>
+    <loc>https://amoswzw.github.io/fluxtty/index.zh-CN.html</loc>
+    <lastmod>2026-08-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://amoswzw.github.io/fluxtty/" />
+    <xhtml:link rel="alternate" hreflang="es-ES" href="https://amoswzw.github.io/fluxtty/index.es-ES.html" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://amoswzw.github.io/fluxtty/index.zh-CN.html" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://amoswzw.github.io/fluxtty/index.fr.html" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://amoswzw.github.io/fluxtty/index.de.html" />
+    <xhtml:link rel="alternate" hreflang="it" href="https://amoswzw.github.io/fluxtty/index.it.html" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://amoswzw.github.io/fluxtty/" />
+  </url>
+  <url>
+    <loc>https://amoswzw.github.io/fluxtty/index.fr.html</loc>
+    <lastmod>2026-08-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://amoswzw.github.io/fluxtty/" />
+    <xhtml:link rel="alternate" hreflang="es-ES" href="https://amoswzw.github.io/fluxtty/index.es-ES.html" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://amoswzw.github.io/fluxtty/index.zh-CN.html" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://amoswzw.github.io/fluxtty/index.fr.html" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://amoswzw.github.io/fluxtty/index.de.html" />
+    <xhtml:link rel="alternate" hreflang="it" href="https://amoswzw.github.io/fluxtty/index.it.html" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://amoswzw.github.io/fluxtty/" />
+  </url>
+  <url>
+    <loc>https://amoswzw.github.io/fluxtty/index.de.html</loc>
+    <lastmod>2026-08-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://amoswzw.github.io/fluxtty/" />
+    <xhtml:link rel="alternate" hreflang="es-ES" href="https://amoswzw.github.io/fluxtty/index.es-ES.html" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://amoswzw.github.io/fluxtty/index.zh-CN.html" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://amoswzw.github.io/fluxtty/index.fr.html" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://amoswzw.github.io/fluxtty/index.de.html" />
+    <xhtml:link rel="alternate" hreflang="it" href="https://amoswzw.github.io/fluxtty/index.it.html" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://amoswzw.github.io/fluxtty/" />
+  </url>
+  <url>
+    <loc>https://amoswzw.github.io/fluxtty/index.it.html</loc>
+    <lastmod>2026-08-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://amoswzw.github.io/fluxtty/" />
+    <xhtml:link rel="alternate" hreflang="es-ES" href="https://amoswzw.github.io/fluxtty/index.es-ES.html" />
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://amoswzw.github.io/fluxtty/index.zh-CN.html" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://amoswzw.github.io/fluxtty/index.fr.html" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://amoswzw.github.io/fluxtty/index.de.html" />
+    <xhtml:link rel="alternate" hreflang="it" href="https://amoswzw.github.io/fluxtty/index.it.html" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://amoswzw.github.io/fluxtty/" />
   </url>
   <url>
     <loc>https://amoswzw.github.io/fluxtty/llms.txt</loc>
