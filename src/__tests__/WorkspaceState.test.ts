@@ -19,6 +19,8 @@ function makePane(overrides: Partial<PaneInfo> = {}): PaneInfo {
     last_command: null,
     last_exit_code: null,
     alternate_screen: false,
+    owner: 'user',
+    human_touched: false,
     ...overrides,
   };
 }
@@ -97,6 +99,19 @@ describe('formatWorkspaceContext', () => {
   it('returns empty state message when no panes', () => {
     const result = formatWorkspaceContext(makeState([]));
     expect(result).toContain('(no sessions)');
+  });
+
+  it('shows owner:ai and human_touched for AI-owned panes', () => {
+    const pane = makePane({ owner: 'ai', human_touched: true });
+    const result = formatWorkspaceContext(makeState([pane]));
+    expect(result).toContain('owner:ai');
+    expect(result).toContain('human_touched:true');
+  });
+
+  it('omits ownership info for user-owned panes', () => {
+    const pane = makePane({ owner: 'user' });
+    const result = formatWorkspaceContext(makeState([pane]));
+    expect(result).not.toContain('owner:');
   });
 
   it('includes row notes when present', () => {

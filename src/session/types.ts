@@ -17,6 +17,8 @@ export type AgentType =
 
 export type PaneNameSource = 'auto' | 'manual';
 
+export type PaneOwner = 'user' | 'ai';
+
 export interface PaneInfo {
   id: number;
   name: string;
@@ -36,6 +38,10 @@ export interface PaneInfo {
   last_exit_code: number | null;
   /** Whether the pane is currently in alternate screen mode (e.g. vim, htop). */
   alternate_screen: boolean;
+  /** Who created this pane. 'ai' panes are subject to the Workspace AI's autonomous close decisions. */
+  owner: PaneOwner;
+  /** Set once a human types into an 'ai'-owned pane; never cleared. Gates whether the AI may close it silently. */
+  human_touched: boolean;
 }
 
 export interface RowInfo {

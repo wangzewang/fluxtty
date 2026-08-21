@@ -41,6 +41,22 @@ impl Default for PaneNameSource {
     }
 }
 
+/// Who created this pane. `Ai` panes are subject to the Workspace AI's
+/// autonomous close decisions (see `human_touched` below); `User` panes are
+/// never touched by that logic.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PaneOwner {
+    User,
+    Ai,
+}
+
+impl Default for PaneOwner {
+    fn default() -> Self {
+        PaneOwner::User
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaneInfo {
     pub id: u32,
@@ -60,6 +76,10 @@ pub struct PaneInfo {
     pub last_exit_code: Option<i32>,
     /// Whether the pane is currently in alternate screen mode (e.g. vim, htop).
     pub alternate_screen: bool,
+    pub owner: PaneOwner,
+    /// Set once a human types into an `Ai`-owned pane and never cleared —
+    /// gates whether the Workspace AI may close this pane silently.
+    pub human_touched: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,6 +120,7 @@ impl SessionManager {
         group: String,
         row_index: usize,
         tmux_session: Option<String>,
+        owner: PaneOwner,
     ) -> PaneInfo {
         // Keep next_id ahead of any explicitly-assigned id to avoid future collisions
         if id >= self.next_id {
@@ -129,6 +150,8 @@ impl SessionManager {
             last_command: None,
             last_exit_code: None,
             alternate_screen: false,
+            owner,
+            human_touched: false,
         };
 
         // Add to layout
@@ -245,6 +268,20 @@ impl SessionManager {
         }
     }
 
+    /// Record that a human typed into an AI-owned pane. No-op for user-owned
+    /// panes (the flag is meaningless there) and for panes already marked.
+    /// Returns true if this call actually changed state (so callers can skip
+    /// emitting a redundant `session:changed`).
+    pub fn mark_pane_human_touched(&mut self, id: u32) -> bool {
+        if let Some(pane) = self.panes.get_mut(&id) {
+            if pane.owner == PaneOwner::Ai && !pane.human_touched {
+                pane.human_touched = true;
+                return true;
+            }
+        }
+        false
+    }
+
     /// Insert a new empty row at `index` in the layout and shift all panes in
     /// subsequent rows down by one, keeping row_index values consistent with
     /// DOM order. Returns the row_index to pass to `create_pane`.
@@ -270,4 +307,60 @@ pub type SharedSessionManager = Arc<Mutex<SessionManager>>;
 
 pub fn new_shared_session_manager() -> SharedSessionManager {
     Arc::new(Mutex::new(SessionManager::new()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_pane_defaults_to_user_owner() {
+        let mut mgr = SessionManager::new();
+        let pane = mgr.create_pane(1, "/tmp".into(), "default".into(), 0, None, PaneOwner::User);
+        assert_eq!(pane.owner, PaneOwner::User);
+        assert!(!pane.human_touched);
+    }
+
+    #[test]
+    fn create_pane_can_be_ai_owned() {
+        let mut mgr = SessionManager::new();
+        let pane = mgr.create_pane(1, "/tmp".into(), "default".into(), 0, None, PaneOwner::Ai);
+        assert_eq!(pane.owner, PaneOwner::Ai);
+    }
+
+    #[test]
+    fn mark_pane_human_touched_flips_flag_for_ai_owned_pane() {
+        let mut mgr = SessionManager::new();
+        mgr.create_pane(1, "/tmp".into(), "default".into(), 0, None, PaneOwner::Ai);
+
+        let changed = mgr.mark_pane_human_touched(1);
+        assert!(changed);
+        assert!(mgr.get_pane(1).unwrap().human_touched);
+    }
+
+    #[test]
+    fn mark_pane_human_touched_is_idempotent() {
+        let mut mgr = SessionManager::new();
+        mgr.create_pane(1, "/tmp".into(), "default".into(), 0, None, PaneOwner::Ai);
+
+        assert!(mgr.mark_pane_human_touched(1));
+        // Second call: flag is already set, so this call changes nothing.
+        assert!(!mgr.mark_pane_human_touched(1));
+    }
+
+    #[test]
+    fn mark_pane_human_touched_is_a_no_op_for_user_owned_panes() {
+        let mut mgr = SessionManager::new();
+        mgr.create_pane(1, "/tmp".into(), "default".into(), 0, None, PaneOwner::User);
+
+        let changed = mgr.mark_pane_human_touched(1);
+        assert!(!changed);
+        assert!(!mgr.get_pane(1).unwrap().human_touched);
+    }
+
+    #[test]
+    fn mark_pane_human_touched_is_a_no_op_for_missing_pane() {
+        let mut mgr = SessionManager::new();
+        assert!(!mgr.mark_pane_human_touched(999));
+    }
 }

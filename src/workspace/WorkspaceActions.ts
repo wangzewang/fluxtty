@@ -2,7 +2,9 @@ import { planExecutor } from '../ai/plan-executor';
 import { getPaneContext } from './WorkspaceState';
 import { waitForCommandComplete } from './waitForCommand';
 import { waitForAgentTurn } from './waitForAgentTurn';
-import type { PaneInfo, AgentType, SessionStatus } from '../session/types';
+import { isDestructiveCommand } from './destructiveCommandGuard';
+import { configContext } from '../config/ConfigContext';
+import type { PaneInfo, AgentType, SessionStatus, PaneOwner } from '../session/types';
 
 /** A single action within a pipeline step. */
 export interface PipelineStepAction {
@@ -47,7 +49,8 @@ export type WorkspaceAction =
   | { type: 'write'; target: string; data: string }
   | { type: 'paste'; target: string; data: string }
   | { type: 'set-agent'; target: string; agentType: AgentType }
-  | { type: 'agent-send'; target: string; message: string; timeout_ms?: number };
+  | { type: 'agent-send'; target: string; message: string; timeout_ms?: number }
+  | { type: 'agent-await-ready'; target: string; timeout_ms?: number };
 
 export type WorkspaceActionSource = 'keyboard' | 'ui' | 'ai' | 'system';
 
@@ -80,7 +83,7 @@ export interface SessionPort {
 }
 
 export interface TerminalRuntimePort {
-  write(paneId: number, data: string): Promise<void>;
+  write(paneId: number, data: string, origin?: 'human' | 'ai'): Promise<void>;
 }
 
 export interface SpawnPaneOptions {
@@ -90,6 +93,7 @@ export interface SpawnPaneOptions {
   tmuxSession?: string | null;
   targetRow?: number;
   afterPaneId?: number;
+  owner?: PaneOwner;
 }
 
 export interface PaneRef {
@@ -194,11 +198,63 @@ class WorkspaceActions {
           : action.message;
         return `send to agent in "${action.target}": ${preview}`;
       }
+      case 'agent-await-ready':
+        return `wait for agent in "${action.target}" to be ready`;
     }
   }
 
   isConfirmable(action: WorkspaceAction): boolean {
-    return CONFIRMABLE_TYPES.has(action.type);
+    if (!CONFIRMABLE_TYPES.has(action.type)) return false;
+    if (action.type === 'broadcast' || action.type === 'run-group') {
+      return configContext.get().workspace_ai.always_confirm_broadcast !== false;
+    }
+    return configContext.get().workspace_ai.always_confirm_multi_step !== false;
+  }
+
+  /** The hard, non-config-gated destructive-command safety net (see destructiveCommandGuard.ts). */
+  private isDestructive(action: WorkspaceAction): boolean {
+    switch (action.type) {
+      case 'run':
+      case 'run-await':
+        return isDestructiveCommand(action.cmd);
+      case 'write':
+      case 'paste':
+        return isDestructiveCommand(action.data);
+      case 'agent-send':
+        return isDestructiveCommand(action.message);
+      default:
+        return false;
+    }
+  }
+
+  /** Run a single, already-concrete leaf action for the first time: if it's
+   *  destructive, queue it for confirmation instead of running it (regardless
+   *  of source or of always_confirm_*); otherwise run it immediately. Must
+   *  NOT be called from the post-confirmation execution path (dispatchConfirmed
+   *  / dispatchManyConfirmed) — those call executeAction() directly so a
+   *  destructive action, once confirmed, actually runs instead of being
+   *  re-queued forever. */
+  private async dispatchLeaf(action: WorkspaceAction, source: WorkspaceActionSource): Promise<WorkspaceActionResult> {
+    if (this.isDestructive(action)) {
+      const preview = await this.queueActionBatch(`Confirm destructive command: ${this.actionDescription(action)}`, [action], { source });
+      return { ok: true, message: preview, action };
+    }
+    // Closing a specific AI-owned pane a human has typed into needs explicit
+    // confirmation, even though 'close' is otherwise immediate. The bulk
+    // "close idle" target is handled separately inside executeAction() since
+    // it isn't a single findPane() target.
+    if (action.type === 'close' && action.target.toLowerCase() !== 'idle') {
+      const pane = this.findPane(action.target);
+      if (pane && pane.owner === 'ai' && pane.human_touched) {
+        const preview = await this.queueActionBatch(
+          `Confirm closing "${pane.name}" — you typed into it while the AI was working on it`,
+          [action],
+          { source },
+        );
+        return { ok: true, message: preview, action };
+      }
+    }
+    return this.executeAction(action, source);
   }
 
   async dispatch(action: WorkspaceAction, options: DispatchOptions = {}): Promise<WorkspaceActionResult> {
@@ -206,12 +262,12 @@ class WorkspaceActions {
     return this.recordAction(source, action, () => (
       this.isConfirmable(action)
         ? this.queueConfirmable(action, source)
-        : this.execute(action, source)
+        : this.dispatchLeaf(action, source)
     ));
   }
 
   private async dispatchConfirmed(action: WorkspaceAction, source: WorkspaceActionSource): Promise<WorkspaceActionResult> {
-    return this.recordAction(source, action, () => this.execute(action, source));
+    return this.recordAction(source, action, () => this.executeAction(action, source));
   }
 
   private async recordAction(
@@ -313,14 +369,32 @@ class WorkspaceActions {
     return results;
   }
 
-  private async execute(action: WorkspaceAction, _source: WorkspaceActionSource): Promise<WorkspaceActionResult> {
+  /** Like dispatchManyConfirmed, but for leaf actions that were expanded from
+   *  a compound action (broadcast/run-group/close-group/sequential) whose
+   *  confirmation was skipped at the top level (always_confirm_* disabled) —
+   *  so, unlike dispatchManyConfirmed, each leaf still gets the destructive
+   *  check via dispatchLeaf. Not used for pipeline: its steps carry
+   *  prev-success/prev-fail result-chaining semantics that a "queued, not yet
+   *  run" destructive result would corrupt, so pipeline relies solely on its
+   *  own top-level confirmation preview (which already lists every command). */
+  private async dispatchManyGuarded(actions: WorkspaceAction[], source: WorkspaceActionSource): Promise<WorkspaceActionResult[]> {
+    const results: WorkspaceActionResult[] = [];
+    for (const action of actions) {
+      results.push(await this.recordAction(source, action, () => this.dispatchLeaf(action, source)));
+      await delay(300);
+    }
+    return results;
+  }
+
+  private async executeAction(action: WorkspaceAction, source: WorkspaceActionSource): Promise<WorkspaceActionResult> {
     const ports = this.requirePorts();
+    const origin: 'human' | 'ai' = source === 'ui' || source === 'keyboard' ? 'human' : 'ai';
 
     switch (action.type) {
       case 'run': {
         const pane = this.findPane(action.target);
         if (!pane) return this.fail(action, `Session "${action.target}" not found.`);
-        await ports.terminal.write(pane.id, `${action.cmd}\r`);
+        await ports.terminal.write(pane.id, `${action.cmd}\r`, origin);
         ports.viewport.scrollToPane(pane.id);
         return this.ok(action, `Ran "${action.cmd}" in ${pane.name}.`);
       }
@@ -330,7 +404,7 @@ class WorkspaceActions {
         if (!pane) return this.fail(action, `Session "${action.target}" not found.`);
         const commandDone = waitForCommandComplete(pane.id, action.timeout_ms ?? 60_000);
         try {
-          await ports.terminal.write(pane.id, `${action.cmd}\r`);
+          await ports.terminal.write(pane.id, `${action.cmd}\r`, origin);
         } catch (err) {
           commandDone.catch(() => {});
           return this.fail(action, err instanceof Error ? err.message : String(err));
@@ -386,10 +460,10 @@ class WorkspaceActions {
 
           const stepResults: WorkspaceActionResult[] = [];
           if (step.parallel !== false) {
-            stepResults.push(...await Promise.all(stepActions.map(a => this.execute(a, _source))));
+            stepResults.push(...await Promise.all(stepActions.map(a => this.executeAction(a, source))));
           } else {
             for (const a of stepActions) {
-              stepResults.push(await this.execute(a, _source));
+              stepResults.push(await this.executeAction(a, source));
             }
           }
           prevResults = stepResults;
@@ -402,7 +476,8 @@ class WorkspaceActions {
       }
 
       case 'new': {
-        const pane = await ports.layout.spawnPane({ newRow: true, group: action.group ?? undefined });
+        const owner: PaneOwner = source === 'ai' ? 'ai' : 'user';
+        const pane = await ports.layout.spawnPane({ newRow: true, group: action.group ?? undefined, owner });
         if (!pane) return this.fail(action, 'Failed to create session.');
         if (action.name) await ports.session.renamePane(pane.paneId, action.name, 'manual');
         if (action.group) await ports.session.setPaneGroup(pane.paneId, action.group);
@@ -419,8 +494,19 @@ class WorkspaceActions {
       case 'close': {
         if (action.target.toLowerCase() === 'idle') {
           const idle = ports.session.getAllPanes().filter(pane => pane.status === 'idle');
-          for (const pane of idle) await ports.layout.closePane(pane.id);
-          return this.ok(action, `Closed ${idle.length} idle session(s).`);
+          const safe = idle.filter(p => !(p.owner === 'ai' && p.human_touched));
+          const needsConfirm = idle.filter(p => p.owner === 'ai' && p.human_touched);
+          for (const pane of safe) await ports.layout.closePane(pane.id);
+          if (needsConfirm.length > 0) {
+            const confirmActions: WorkspaceAction[] = needsConfirm.map(p => ({ type: 'close', target: String(p.id) }));
+            await this.queueActionBatch(
+              `Confirm closing ${needsConfirm.length} pane(s) you typed into while the AI was working`,
+              confirmActions,
+              { source },
+            );
+          }
+          const confirmNote = needsConfirm.length > 0 ? `, ${needsConfirm.length} awaiting confirmation` : '';
+          return this.ok(action, `Closed ${safe.length} idle session(s)${confirmNote}.`);
         }
         const pane = this.findPane(action.target);
         if (!pane) return this.fail(action, `Session "${action.target}" not found.`);
@@ -457,14 +543,14 @@ class WorkspaceActions {
       case 'clear': {
         const pane = this.findPane(action.target);
         if (!pane) return this.fail(action, `Session "${action.target}" not found.`);
-        await ports.terminal.write(pane.id, 'clear\r');
+        await ports.terminal.write(pane.id, 'clear\r', origin);
         return this.ok(action, `Cleared ${pane.name}.`);
       }
 
       case 'kill': {
         const pane = this.findPane(action.target);
         if (!pane) return this.fail(action, `Session "${action.target}" not found.`);
-        await ports.terminal.write(pane.id, '\x03');
+        await ports.terminal.write(pane.id, '\x03', origin);
         return this.ok(action, `Sent Ctrl+C to ${pane.name}.`);
       }
 
@@ -472,7 +558,7 @@ class WorkspaceActions {
       case 'paste': {
         const pane = this.findPane(action.target);
         if (!pane) return this.fail(action, `Session "${action.target}" not found.`);
-        await ports.terminal.write(pane.id, action.data);
+        await ports.terminal.write(pane.id, action.data, origin);
         return this.ok(action, `Wrote to ${pane.name}.`);
       }
 
@@ -493,7 +579,7 @@ class WorkspaceActions {
         // Start listening before writing so we don't miss the first bytes of output.
         const turnDone = waitForAgentTurn(pane.id, pane.agent_type, action.timeout_ms ?? 120_000);
         try {
-          await ports.terminal.write(pane.id, `${action.message}\r`);
+          await ports.terminal.write(pane.id, `${action.message}\r`, origin);
         } catch (err) {
           turnDone.catch(() => {});
           return this.fail(action, err instanceof Error ? err.message : String(err));
@@ -520,6 +606,28 @@ class WorkspaceActions {
         return this.ok(action, response + truncNote);
       }
 
+      case 'agent-await-ready': {
+        const pane = this.findPane(action.target);
+        if (!pane) return this.fail(action, `Session "${action.target}" not found.`);
+        // Deliberately does NOT require pane.agent_type to already be set: this is
+        // called right after "run"-launching an agent, and "run" is fire-and-forget
+        // — it returns before the launched process has printed anything, so
+        // AgentDetector normally hasn't classified the pane yet. Requiring
+        // agent_type != 'none' here would make this action fail every time it's
+        // actually needed. Pass whatever agent_type is known now (possibly 'none');
+        // waitForAgentTurn falls back to a silence-based heuristic when it doesn't
+        // recognize the type, which is exactly the "still booting" case.
+        try {
+          await waitForAgentTurn(pane.id, pane.agent_type, action.timeout_ms ?? 60_000);
+        } catch (err) {
+          return this.fail(action, err instanceof Error ? err.message : 'Timed out waiting for agent to start.');
+        }
+        // Re-read the pane: AgentDetector should have classified it from the same
+        // output stream we just watched, so agent_type is normally populated by now.
+        const settled = this.findPane(action.target);
+        return this.ok(action, `${pane.name}'s agent is ready.${settled && settled.agent_type === 'none' ? ` (its type wasn't auto-recognized — use set-agent on "${pane.name}" first, then agent-send will work)` : ''}`);
+      }
+
       case 'broadcast':
       case 'run-group':
       case 'close-group':
@@ -528,7 +636,12 @@ class WorkspaceActions {
         if (actions.length === 0) {
           return this.fail(action, `No sessions matched ${this.actionDescription(action)}.`);
         }
-        const results = await this.dispatchManyConfirmed(actions, _source);
+        // Reached only when this compound action's own confirmation was
+        // skipped (always_confirm_* disabled) — expandConfirmableAction's
+        // output was never individually shown to the user, so each leaf still
+        // needs its own destructive-command check. Compare dispatchManyConfirmed,
+        // used when the leaves were already listed in a prior confirmation preview.
+        const results = await this.dispatchManyGuarded(actions, source);
         const ok = results.every(result => result.ok);
         const message = results.map(result => result.message).join('\n');
         return ok

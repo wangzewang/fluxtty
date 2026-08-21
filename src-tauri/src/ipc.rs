@@ -1,6 +1,6 @@
 use crate::config::{load_config, SharedConfig};
 use crate::pty::SharedPtyManager;
-use crate::session::{AgentType, PaneNameSource, SessionStatus, SharedSessionManager};
+use crate::session::{AgentType, PaneNameSource, PaneOwner, SessionStatus, SharedSessionManager};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
 
@@ -15,12 +15,22 @@ pub struct SpawnPtyArgs {
     /// Which row to target in DOM order. When new_row is true, this is the
     /// insertion point for the new row. Otherwise this is the row to add to.
     pub target_row: Option<usize>,
+    /// Who is spawning this pane. Defaults to `User` when omitted (e.g. the
+    /// "+" button, keyboard shortcuts). The Workspace AI's `new` action
+    /// passes `Ai` explicitly.
+    pub owner: Option<PaneOwner>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct WritePtyArgs {
     pub pane_id: u32,
     pub data: String,
+    /// Who originated this write: "human" (a real keystroke/paste) or "ai"
+    /// (Workspace AI dispatch). Only "human" writes into an `Ai`-owned pane
+    /// flip that pane's `human_touched` flag. Omitted/unrecognized values are
+    /// treated as non-human (no flag change) — origin is opt-in, not a trust
+    /// boundary in itself.
+    pub origin: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -120,6 +130,7 @@ pub async fn pty_spawn(
             group,
             row_index,
             spawn.tmux_session.clone(),
+            args.owner.unwrap_or_default(),
         );
         // Notify frontend of session change
         let _ = app.emit("session:changed", session.all_panes());
@@ -136,10 +147,21 @@ pub async fn pty_spawn(
 #[tauri::command]
 pub async fn pty_write(
     args: WritePtyArgs,
+    app: AppHandle,
     pty_mgr: State<'_, SharedPtyManager>,
+    session_mgr: State<'_, SharedSessionManager>,
 ) -> Result<(), String> {
-    let mut pty = pty_mgr.lock().unwrap();
-    pty.write(args.pane_id, args.data.as_bytes())
+    {
+        let mut pty = pty_mgr.lock().unwrap();
+        pty.write(args.pane_id, args.data.as_bytes())?;
+    }
+    if args.origin.as_deref() == Some("human") {
+        let mut session = session_mgr.lock().unwrap();
+        if session.mark_pane_human_touched(args.pane_id) {
+            let _ = app.emit("session:changed", session.all_panes());
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -492,14 +514,34 @@ pub async fn claude_cli_query(prompt: String) -> Result<String, String> {
     ai_cli_query("claude-cli".to_string(), prompt).await
 }
 
+/// CLI-backed models can do real, unbounded agentic work (especially if the
+/// user's own shell alias adds something like --dangerously-skip-permissions —
+/// fluxtty has no way to know or control that). Without a timeout, a stuck or
+/// long-running invocation blocks the Workspace AI turn forever with no way
+/// to cancel. 180s comfortably covers a normal single-turn CLI reply while
+/// still failing loudly instead of hanging indefinitely.
+const AI_CLI_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(180);
+
 /// Run a local AI CLI as a subprocess and return the response text.
 /// Requires the selected CLI to be installed and authenticated.
 #[tauri::command]
 pub async fn ai_cli_query(cli: String, prompt: String) -> Result<String, String> {
     use tokio::process::Command;
 
+    // claude-cli explicitly disables all of Claude Code's own tools (--tools "").
+    // Without this, `claude -p` behaves as a full agentic CLI that tries to
+    // satisfy the request itself (bash, file edits, etc.) in its own subprocess
+    // context — invisible to fluxtty and bypassing WorkspaceActions' destructive-
+    // command guard and close-gating entirely — instead of replying with the
+    // ```action``` block fluxtty's dispatch protocol expects. With no tools
+    // available it can only respond in plain text, which is what this protocol
+    // requires. (No verified equivalent flag for the other CLI providers below —
+    // codex/opencode/gemini/qwen — left as-is; same risk applies to them.)
     let (binary, shell_command) = match cli.as_str() {
-        "claude-cli" => ("claude", "claude -p \"$FLUXTTY_PROMPT\""),
+        // --tools must come before -p: it's a variadic option (`--tools <tools...>`),
+        // so placed after -p it would greedily swallow the prompt argument too,
+        // leaving none for the positional prompt and erroring out.
+        "claude-cli" => ("claude", "claude --tools \"\" -p \"$FLUXTTY_PROMPT\""),
         "codex-cli" => ("codex", "codex exec \"$FLUXTTY_PROMPT\""),
         "opencode-cli" => ("opencode", "opencode run \"$FLUXTTY_PROMPT\""),
         "gemini-cli" => ("gemini", "gemini --prompt \"$FLUXTTY_PROMPT\""),
@@ -514,18 +556,35 @@ pub async fn ai_cli_query(cli: String, prompt: String) -> Result<String, String>
     // stdin is /dev/null to prevent interactive prompts from hanging.
     // The prompt is passed via an env var to avoid shell-injection issues.
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-    let output = Command::new(&shell)
+    let child = Command::new(&shell)
         .args(["-i", "-l", "-c", shell_command])
         .env("FLUXTTY_PROMPT", &prompt)
         .stdin(std::process::Stdio::null())
-        .output()
-        .await
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        // Ensures the subprocess is actually killed (not left running/orphaned)
+        // if we drop it below on timeout.
+        .kill_on_drop(true)
+        .spawn()
         .map_err(|e| {
             format!(
                 "Failed to spawn shell: {}. Is `{}` CLI installed?",
                 e, binary
             )
         })?;
+
+    let output = match tokio::time::timeout(AI_CLI_TIMEOUT, child.wait_with_output()).await {
+        Ok(result) => result.map_err(|e| format!("Failed to read {} CLI output: {}", binary, e))?,
+        Err(_) => {
+            return Err(format!(
+                "{} CLI timed out after {}s with no response and was killed. If it was doing \
+                real agentic work (e.g. a shell alias that adds extra permissions/tool access), \
+                that work may be incomplete — check the affected files/panes directly.",
+                binary,
+                AI_CLI_TIMEOUT.as_secs(),
+            ));
+        }
+    };
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

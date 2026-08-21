@@ -133,7 +133,7 @@ describe('AIHandler conversation history', () => {
 // ── System prompt contents ────────────────────────────────────────────────────
 
 describe('system prompt', () => {
-  it('includes new action types: run-await, read, pipeline', async () => {
+  it('includes new action types: run-await, read, pipeline, agent-await-ready', async () => {
     mockComplete.mockResolvedValue('ok');
     await aiHandler.handle('test');
 
@@ -143,6 +143,7 @@ describe('system prompt', () => {
     expect(systemMsg!.content).toContain('run-await');
     expect(systemMsg!.content).toContain('read');
     expect(systemMsg!.content).toContain('pipeline');
+    expect(systemMsg!.content).toContain('agent-await-ready');
   });
 
   it('rebuilds workspace context on every call (no stale snapshot)', async () => {
@@ -157,7 +158,12 @@ describe('system prompt', () => {
 // ── Action execution ──────────────────────────────────────────────────────────
 
 describe('AIHandler action routing', () => {
-  it('queues workspace-changing model actions for confirmation', async () => {
+  // Every parsed action is dispatched through workspaceActions.dispatch() —
+  // WorkspaceActions itself (isConfirmable/dispatchLeaf, tested separately in
+  // WorkspaceActions.test.ts) decides per action type whether that runs
+  // immediately or is queued for confirmation. ai-handler no longer makes
+  // that decision itself.
+  it('dispatches a run action through workspaceActions.dispatch', async () => {
     const { workspaceActions } = await import('../workspace/WorkspaceActions');
     mockComplete.mockResolvedValue([
       'I will run it.',
@@ -168,13 +174,11 @@ describe('AIHandler action routing', () => {
 
     const result = await aiHandler.handle('run tests');
 
-    expect(result).toContain('Plan: queued');
-    expect(vi.mocked(workspaceActions.queueActionBatch)).toHaveBeenCalledWith(
-      expect.stringContaining('action desc'),
-      [{ type: 'run', target: 'frontend', cmd: 'npm test' }],
+    expect(result).toContain('done');
+    expect(vi.mocked(workspaceActions.dispatch)).toHaveBeenCalledWith(
+      { type: 'run', target: 'frontend', cmd: 'npm test' },
       { source: 'ai' },
     );
-    expect(vi.mocked(workspaceActions.dispatch)).not.toHaveBeenCalled();
   });
 
   it('executes read actions immediately', async () => {
@@ -192,10 +196,9 @@ describe('AIHandler action routing', () => {
       { type: 'read', target: 'frontend' },
       { source: 'ai' },
     );
-    expect(vi.mocked(workspaceActions.queueActionBatch)).not.toHaveBeenCalled();
   });
 
-  it('accepts an array of actions in one action block', async () => {
+  it('accepts an array of actions in one action block and dispatches each', async () => {
     const { workspaceActions } = await import('../workspace/WorkspaceActions');
     mockComplete.mockResolvedValue([
       '```action',
@@ -209,12 +212,11 @@ describe('AIHandler action routing', () => {
     await aiHandler.handle('set up server');
 
     expect(vi.mocked(workspaceActions.dispatch)).toHaveBeenCalledWith(
-      { type: 'focus', target: 'server' },
+      { type: 'new', name: 'server' },
       { source: 'ai' },
     );
-    expect(vi.mocked(workspaceActions.queueActionBatch)).toHaveBeenCalledWith(
-      expect.stringContaining('action desc'),
-      [{ type: 'new', name: 'server' }],
+    expect(vi.mocked(workspaceActions.dispatch)).toHaveBeenCalledWith(
+      { type: 'focus', target: 'server' },
       { source: 'ai' },
     );
   });

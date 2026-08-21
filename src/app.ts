@@ -95,7 +95,7 @@ export async function initApp(root: HTMLElement) {
   workspaceActions.configure({
     session: sessionManager,
     terminal: {
-      write: (paneId, data) => transport.send('pty_write', { args: { pane_id: paneId, data } }),
+      write: (paneId, data, origin) => transport.send('pty_write', { args: { pane_id: paneId, data, origin } }),
     },
     layout: {
       spawnPane: async (opts) => {

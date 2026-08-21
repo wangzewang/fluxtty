@@ -42,9 +42,10 @@ export class SessionSidebar {
           <div class="sb-group">
             <div class="sb-group-label">${group}</div>
             ${ps.map(p => `
-              <div class="sb-item ${p.id === activePaneId ? 'sb-active' : ''}" data-id="${p.id}">
+              <div class="sb-item ${p.id === activePaneId ? 'sb-active' : ''} ${p.owner === 'ai' ? 'sb-ai-owned' : ''}" data-id="${p.id}">
                 <span class="sb-dot sb-dot-${p.status}">●</span>
                 <span class="sb-name">${p.name}</span>
+                ${p.owner === 'ai' ? `<span class="sb-owner" title="Created by the Workspace AI">AI</span>` : ''}
                 ${p.agent_type !== 'none' ? `<span class="sb-agent">${p.agent_type}</span>` : ''}
                 <button class="sb-close" data-close-id="${p.id}" tabindex="-1" title="Close">✕</button>
               </div>

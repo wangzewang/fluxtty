@@ -353,12 +353,18 @@ body[data-compact="true"] .terminal-row[data-has-note="true"] .row-note-toggle {
   border-left-color: var(--accent);
   background: color-mix(in srgb, var(--blue) 10%, transparent 90%);
 }
+/* AI-owned session: distinct border accent when not the active pane (active
+   state's accent border takes priority so focus is always unambiguous). */
+.sb-item.sb-ai-owned:not(.sb-active) {
+  border-left-color: color-mix(in srgb, var(--magenta) 55%, transparent 45%);
+}
 
 .sb-dot { font-size: 8px; }
 .sb-dot-idle { color: var(--muted); }
 .sb-dot-running { color: var(--accent); animation: blink 1.4s ease-in-out infinite; }
 .sb-dot-error { color: var(--red); }
 .sb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.sb-owner { font-size: 9px; font-weight: 700; color: var(--magenta); background: rgba(180,140,173,.14); border: 1px solid rgba(180,140,173,.3); padding: 0 4px; border-radius: 3px; }
 .sb-agent { font-size: 9px; color: var(--cyan); background: rgba(57,197,207,.1); border: 1px solid rgba(57,197,207,.25); padding: 0 4px; border-radius: 3px; }
 .sb-close {
   background: none; border: none; color: var(--muted); cursor: pointer;
@@ -489,6 +495,18 @@ body.has-row-view .terminal-row.row-view-active .terminal-pane.active {
 }
 .terminal-pane:last-child { border-right: none; }
 
+/* AI-owned panes (Workspace AI created them, see PaneInfo.owner) get a
+   persistent accent so they read as distinct at a glance, not just when
+   focused. Once a human types into one (human_touched), the accent dims —
+   still AI-owned, but the AI will ask before closing it instead of deciding
+   silently. */
+.terminal-pane.ai-owned {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--magenta) 65%, transparent 35%);
+}
+.terminal-pane.ai-owned-touched {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--magenta) 30%, transparent 70%);
+}
+
 /* When resize handles are present, the handle provides visual separation — suppress pane borders */
 .terminal-row:has(.pane-resize-handle) .terminal-pane { border-right: none; }
 
@@ -578,6 +596,20 @@ body[data-mode="view"] .terminal-pane.active .pane-header {
   outline: 1px solid var(--blue);
   color: var(--fg);
   min-width: 40px;
+}
+.pane-owner-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--magenta);
+  background: rgba(180,140,173,.14);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(180,140,173,.3);
+}
+.pane-owner-badge:empty { display: none; }
+.terminal-pane.ai-owned-touched .pane-owner-badge {
+  opacity: 0.6;
 }
 .pane-group-badge {
   font-size: 9px;

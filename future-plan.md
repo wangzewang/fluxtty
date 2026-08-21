@@ -5,6 +5,19 @@ This file translates `future.md` into an execution plan.
 The plan is intentionally staged so Fluxtty can keep shipping useful terminal
 features while gradually becoming an AI-native workspace.
 
+> **Status update (2026-08-18):** Phases 1, 2, and most of Phase 3/4 below are
+> now implemented — this doc had drifted out of sync with the code (verified
+> against `src/transport.ts`, `src/workspace/WorkspaceActions.ts`,
+> `src/session/SessionObserver.ts`, `pty.rs`'s OSC 133 handling,
+> `src/workspace/WorkspaceState.ts`, and `ipc.rs::get_pane_context`). See the
+> per-phase status lines below. What's actually open now is Phase 3's action
+> log, and Phase 5 (orchestration / child AI) in full — that's the live
+> discussion. The "Long Term" daemon/detached-runtime idea in this doc was
+> **not** the direction taken; the team shipped tmux-backed persistence
+> instead (see `CLAUDE.md`'s "Persistence Architecture"). Whether the daemon
+> model is still wanted on top of that, or superseded by it, is an open
+> question — not decided in this file.
+
 ## Planning Goals
 
 - Keep the terminal and workspace strong even before advanced AI arrives.
@@ -43,6 +56,12 @@ Before planning phases, be honest about what already exists:
   abstraction, that means touching every call site across the entire codebase.
 
 ## Phase 1: Fix the Structural Coupling
+
+**Status: done.** `src/transport.ts` exists and is used throughout; `WorkspaceActions`
+was extracted to `src/workspace/WorkspaceActions.ts`; `pty_pid` was removed from
+`PaneInfo` in both `session.rs` and `src/session/types.ts`; `plan-executor.ts` uses a
+real `queue: PendingActionBatch[]`; auto-rename logic moved to `src/session/SessionObserver.ts`
++ `PaneNamingPolicy.ts` (see `CLAUDE.md`'s "AutoNamer / PaneNamingPolicy / SessionObserver").
 
 ### Objective
 
@@ -126,6 +145,12 @@ it should not write back to `SessionManager`.
 
 ## Phase 2: Enrich Workspace State
 
+**Status: done.** OSC 133 A/B/C/D markers are implemented in `pty.rs` (bash and zsh,
+with passing tests); `PaneInfo` carries `last_command`, `last_exit_code`,
+`alternate_screen`; `ai-handler.ts::buildSystemPrompt()` calls
+`serializeWorkspaceState()` from `src/workspace/WorkspaceState.ts` instead of formatting
+`getAllPanes()` by hand; `ipc.rs::get_pane_context` exists.
+
 ### Objective
 
 Make terminal and workspace state machine-readable. This is what allows AI to
@@ -190,6 +215,14 @@ Add an IPC command `get_pane_context(pane_id)` that returns:
 
 ## Phase 3: Normalize Workspace Actions
 
+**Status: partially done.** `WorkspaceAction` is now a proper typed discriminated union
+in `src/workspace/WorkspaceActions.ts` (with a `WorkspaceActionSource` of
+`'keyboard' | 'ui' | 'ai' | 'system'` already tagging every dispatch), so the first
+success criterion is met. **Still open:** no action log / ring buffer exists anywhere in
+`src/workspace/` or `src/ai/` — dispatches are not currently recorded for replay or
+audit. The "audit for remaining direct mutations bypassing `WorkspaceActions`" item has
+not been re-verified since Phase 1 landed.
+
 ### Objective
 
 Keyboard shortcuts, UI buttons, and AI mode all use the same action path. This
@@ -219,6 +252,14 @@ is mostly already done if Phase 1 is complete — this phase hardens it.
 
 ## Phase 4: Deliver Minimal Useful AI Mode
 
+**Status: infrastructure done; "is AI mode clearly useful" is a judgment call, not a
+file check.** The system prompt uses `WorkspaceState.serialize()`, responses dispatch
+through `WorkspaceActions`, confirmation goes through the Phase-1 action queue, and
+result summarization now surfaces exit codes (`WorkspaceActions.ts` lines ~341–359)
+instead of a bare "Done." Whether the AI mode is actually *good* — worth using day to
+day, not just wired up — is exactly the open question for the next discussion, not
+something this doc can mark as complete on its own.
+
 ### Objective
 
 Ship an orchestrator-style AI mode that uses the infrastructure from phases
@@ -246,6 +287,26 @@ Ship an orchestrator-style AI mode that uses the infrastructure from phases
 - AI responses reference actual command results, not just confirmations
 
 ## Phase 5: Add Orchestration and Child AI
+
+**Status: v1 shipped (2026-08-19), single-agent only — "child AI workers"/task routing
+below is still open.** The AI can now autonomously create a pane (`PaneInfo.owner:
+'ai'`), decide what runs in it, delegate via `agent-send`/`agent-await-ready`, and close
+it again once done — gated only by two hard, non-LLM-judgment checks: the destructive
+command guard (`src/workspace/destructiveCommandGuard.ts`) and a "don't silently close a
+pane a human typed into" rule (`PaneInfo.human_touched`). See CLAUDE.md's "Autonomous
+pane control" section for the full mechanism. This deliberately reversed two CLAUDE.md
+"do not reverse without strong reason" rules (Workspace AI as coding assistant; no
+auto-submit to agent panes) — a decision the user made explicitly, not something done
+quietly during implementation.
+
+Deliberately deferred out of v1 (see CLAUDE.md's "no background loop" note): a true
+proactive daemon that re-invokes the AI on its own timeline. v1 instead piggybacks
+close-evaluation onto whatever the next user-initiated AI-mode turn happens to be — the
+system prompt always lists every `owner: 'ai'` pane's state, and the model may act on it
+even when unrelated to what the user just asked, but nothing wakes the AI up in the
+background. Building that proactive loop, plus genuine multi-agent orchestration (this
+is still single-delegate, not "child AI workers" coordinating with each other), remains
+open — see "Scope"/"Concrete Work" below, still applicable to what's left.
 
 ### Objective
 
@@ -294,18 +355,22 @@ Expand from AI-assisted workspace control into AI-managed workspace execution.
 
 ## Recommended Immediate Next Steps
 
-In order:
+The original six items here (transport abstraction, `WorkspaceActions` extraction,
+`pty_pid` removal, plan queue, OSC 133, auto-rename extraction) are **all done** — see
+the per-phase status notes above. Single-agent autonomous pane control (Phase 5 v1) is
+now also done — see that phase's status note. Next up, in order:
 
-1. Introduce `src/transport.ts` and migrate all `invoke`/`listen` calls to it.
-   Small file, high leverage — every subsequent step lands cleaner because of it.
-2. Extract `WorkspaceActions` from `ai-handler.ts`. Unblocks AI/keyboard
-   convergence and removes the `WaterfallArea` dependency from AI code.
-3. Move `pty_pid` out of `PaneInfo` in `session.rs`. Required before any
-   persistence work.
-4. Replace the single-pending-plan model in `plan-executor` with a queue.
-5. Add OSC 133 markers to the existing shell hook injection in `pty.rs`. The
-   infrastructure is already there — this is a small addition.
-6. Move auto-rename logic out of `WaterfallArea`.
+1. Add the Phase 3 action log (dispatch already carries a `WorkspaceActionSource`, so
+   this is mostly plumbing, not new design) — now more clearly useful than before: with
+   autonomous pane control live, there's real value in being able to audit what the AI
+   decided to do and why, not just debugging a single dispatch path.
+2. Decide whether to build the proactive background loop Phase 5 v1 deferred (the AI
+   currently only acts within a user-initiated AI-mode turn, never on its own timeline).
+3. Decide the true multi-agent/child-AI-worker scope from Phase 5's original "Concrete
+   Work" list — v1 only does single-pane delegation, not agents coordinating with each
+   other.
+4. Resolve the daemon/detached-runtime question noted above: is it still wanted given
+   tmux-backed persistence already solves "shells survive the window closing"?
 
 ## Things to Avoid
 
@@ -314,8 +379,7 @@ In order:
 - rebuilding what already exists (`executeAction` is the action layer seed —
   extract it, do not rewrite it)
 - starting Phase 2 before `PaneInfo` is clean of process state
-- treating OSC 133 as a large project (it is a small extension of existing code)
-- adding new AI features while `plan-executor` can still silently drop plans
+- treating OSC 133 as a large project (it is a small extension of existing code) — done
 - mixing runtime design, AI design, and UI polish into one large refactor
 
 ## Review Questions

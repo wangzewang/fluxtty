@@ -109,9 +109,10 @@ export class TerminalPane {
     // fit() is intentionally NOT called here — the element is not yet in the DOM.
     // WaterfallArea calls fit() after appendChild.
 
-    // Handle user input → send to PTY
+    // Handle user input → send to PTY. This is a real keystroke typed directly
+    // into xterm.js (Terminal mode), so it always counts as human-originated.
     this.term.onData((data) => {
-      transport.send('pty_write', { args: { pane_id: this.paneId, data } }).catch(console.error);
+      transport.send('pty_write', { args: { pane_id: this.paneId, data, origin: 'human' } }).catch(console.error);
     });
 
     // Handle resize
@@ -167,6 +168,7 @@ export class TerminalPane {
       <div class="pane-header">
         <span class="pane-status-dot"></span>
         <span class="pane-name"></span>
+        <span class="pane-owner-badge"></span>
         <span class="pane-group-badge"></span>
         <span class="pane-agent-badge"></span>
         <span class="pane-spacer"></span>
@@ -226,8 +228,29 @@ export class TerminalPane {
     const cwdEl = el.querySelector('.pane-cwd') as HTMLElement;
     cwdEl.textContent = this.shortenPath(this.info.cwd);
     cwdEl.setAttribute('title', this.info.cwd);
+    this.applyOwnerDisplay(el, this.info);
 
     return el;
+  }
+
+  /** AI-owned panes get a distinct badge/border so it's visually obvious at a
+   *  glance which panes the Workspace AI created vs. the user. Once a human
+   *  types into one, the badge/border dim slightly — it's still AI-owned, but
+   *  no longer eligible for the AI to close silently (see human_touched in
+   *  CLAUDE.md's "Autonomous pane control"). */
+  private applyOwnerDisplay(el: HTMLElement, info: PaneInfo) {
+    el.classList.toggle('ai-owned', info.owner === 'ai');
+    el.classList.toggle('ai-owned-touched', info.owner === 'ai' && info.human_touched);
+    const ownerEl = el.querySelector('.pane-owner-badge') as HTMLElement;
+    if (info.owner === 'ai') {
+      ownerEl.textContent = 'AI';
+      ownerEl.title = info.human_touched
+        ? 'Created by the Workspace AI — you’ve typed into this pane, so the AI will ask before closing it'
+        : 'Created by the Workspace AI — it may close this pane on its own once the task looks done';
+    } else {
+      ownerEl.textContent = '';
+      ownerEl.removeAttribute('title');
+    }
   }
 
   private shortenPath(p: string): string {
@@ -352,6 +375,7 @@ export class TerminalPane {
     dotEl.dataset.status = info.status;
     agentEl.textContent = info.agent_type !== 'none' ? info.agent_type : '';
     agentEl.dataset.agent = info.agent_type;
+    this.applyOwnerDisplay(this.el, info);
   }
 
   setActive(active: boolean) {
@@ -583,7 +607,7 @@ export class TerminalPane {
         if (lines === 0) return false;
         const seq = deltaPixels > 0 ? '\x1b[B' : '\x1b[A'; // arrow down / up
         for (let i = 0; i < lines; i++) {
-          transport.send('pty_write', { args: { pane_id: this.paneId, data: seq } }).catch(console.error);
+          transport.send('pty_write', { args: { pane_id: this.paneId, data: seq, origin: 'human' } }).catch(console.error);
         }
         return false;
       }

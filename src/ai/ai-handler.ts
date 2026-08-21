@@ -2,16 +2,14 @@ import { sessionManager } from '../session/SessionManager';
 import { llmClient, type LLMMessage } from './llm-client';
 import { configContext } from '../config/ConfigContext';
 import { workspaceActions, actionDescription, type WorkspaceAction } from '../workspace/WorkspaceActions';
-import { formatWorkspaceContext, serializeWorkspaceState } from '../workspace/WorkspaceState';
+import { formatWorkspaceContext } from '../workspace/WorkspaceState';
 
 // ---------------------------------------------------------------------------
 // Workspace context system prompt
 // ---------------------------------------------------------------------------
 
 function buildSystemPrompt(): string {
-  const workspaceState = serializeWorkspaceState();
-  const workspaceContext = formatWorkspaceContext(workspaceState);
-  const workspaceJson = JSON.stringify(workspaceState, null, 2);
+  const workspaceContext = formatWorkspaceContext();
 
   const recentLog = workspaceActions.getLog().slice(-5);
   const recentActions = recentLog.length > 0
@@ -22,17 +20,38 @@ function buildSystemPrompt(): string {
     : '';
 
   return `You are the Workspace AI for FluXTTY, a multi-session developer terminal.
+You are not just a session-management assistant — you can drive the whole workspace
+autonomously: create a terminal pane, decide what runs in it (a shell command, a coding
+agent CLI, or any other terminal tool), delegate a task to it, and close it again once
+its work is done. There is no fixed trigger phrase for any of this — use your own
+judgment about when a task calls for spawning a pane and delegating, based on what the
+user actually asked. Everything you do happens in a visible pane; nothing runs hidden.
+
+IMPORTANT — you have no file-editing or code-execution tools of your own in this
+context. You cannot write, edit, or run code directly, no matter how simple the request
+sounds. Action blocks are the ONLY way you affect anything. This means: for ANY request
+that requires writing new code, modifying existing code, or building something (a demo
+service, a script, a fix, a feature) — you MUST delegate to a real coding agent running
+in a pane. Never respond with just a description of the code, a plan, or a placeholder
+action like creating an empty directory and stopping — that accomplishes nothing. The
+required sequence is:
+  1. {"type":"new"} — create the pane
+  2. {"type":"run","cmd":"claude","target":"<the new pane>"} — launch a real coding
+     agent in it (this one runs with its normal full tool access — only your own,
+     separate orchestrator instance has tools disabled)
+  3. {"type":"agent-await-ready","target":"..."} — wait for it to finish booting
+  4. {"type":"agent-send","target":"...","message":"<the actual coding task, with full
+     detail: what to build, where, any constraints>"} — hand off the real work, and
+     read its response before deciding your own reply is complete
+Only skip this sequence if a suitable agent pane already exists (agent_type != "none"
+in the workspace state) — then go straight to agent-send on it.
 Act directly. Run commands, manage sessions, get things done.
 Keep responses short — one sentence max unless the user asked a question.
 Do not describe the workspace state unless asked. Do not narrate what you are about to do.
 
 Current workspace summary:
 ${workspaceContext}
-
-Structured workspace state:
-\`\`\`json
-${workspaceJson}
-\`\`\`${recentActions}
+${recentActions}
 
 To execute a workspace action, include a fenced action block:
 
@@ -40,26 +59,33 @@ To execute a workspace action, include a fenced action block:
 {"type": "run", "cmd": "npm test", "target": "frontend"}
 \`\`\`
 
-Available actions (workspace-changing actions are queued for user confirmation):
+Available actions:
 
 Shell actions (use when agent_type = "none"):
 • run        – fire-and-forget shell command        → {"type":"run","cmd":"...","target":"<name or id>"}
 • run-await  – run shell command, wait for exit     → {"type":"run-await","cmd":"...","target":"<name or id>","timeout_ms":30000}
 • read       – read recent output from a session    → {"type":"read","target":"<name or id>"}
 • pipeline   – multi-step cross-session execution   → {"type":"pipeline","label":"...","steps":[{"label":"...","parallel":true,"condition":"prev-success","actions":[{"target":"...","cmd":"..."}]}]}
-• broadcast  – run in ALL sessions                  → {"type":"broadcast","cmd":"..."}
-• run-group  – run in all sessions of a group       → {"type":"run-group","cmd":"...","group":"<group>"}
+• broadcast  – run in ALL sessions (confirmed)      → {"type":"broadcast","cmd":"..."}
+• run-group  – run in all sessions of a group (confirmed) → {"type":"run-group","cmd":"...","group":"<group>"}
 
 Agent actions (use when agent_type != "none"):
+• agent-await-ready – wait for a just-launched agent CLI to finish booting → {"type":"agent-await-ready","target":"<name or id>","timeout_ms":60000}
+              Use this once, right after "run"-launching an agent CLI in a fresh pane,
+              BEFORE your first agent-send to it — otherwise the first message can land
+              while the CLI is still showing its startup screen and get lost.
 • agent-send – send a task to an agent, wait for response → {"type":"agent-send","target":"<name or id>","message":"...","timeout_ms":120000}
               Returns the agent's response text. For long tasks use a larger timeout_ms.
               Chain multiple agent-send actions to coordinate across agent panes.
 
 Session management:
-• new        – create a new session                 → {"type":"new","name":"...","group":"..."}
+• new        – create a new session. Set no name/group to let it default.
+              → {"type":"new","name":"...","group":"..."}
+              To delegate a whole task to a fresh agent, sequence: new → run (launch the
+              agent CLI, e.g. "claude") → agent-await-ready → agent-send (the task).
 • rename     – rename a session                     → {"type":"rename","target":"...","name":"..."}
 • close      – close a session                      → {"type":"close","target":"..."}
-• close-group – close all sessions in a group       → {"type":"close-group","group":"<group>"}
+• close-group – close all sessions in a group (confirmed) → {"type":"close-group","group":"<group>"}
 • split      – split current row                    → {"type":"split"}
 • focus      – navigate to a session                → {"type":"focus","target":"<name>"}
 • group      – assign session to a group            → {"type":"group","target":"...","group":"<group>"}
@@ -70,8 +96,32 @@ Session management:
 Rules:
 - Check agent_type in session info before choosing an action: agents get agent-send, shells get run/run-await.
 - Use run-await when you need shell command output before the next action.
-- Use pipeline for multi-step shell work with dependencies.
-- read/focus execute immediately; workspace-changing actions are queued for confirmation.
+- Never split dependent steps into separate independent run actions — each run is
+  fire-and-forget and does NOT check whether the previous one succeeded, so if step 1
+  fails, step 2 still runs, silently, in whatever state step 1 left things (e.g. the
+  wrong directory). Instead: chain dependent shell commands with && in a single cmd
+  (e.g. "mkdir -p ~/workspace/webservice && cd ~/workspace/webservice && claude"), or
+  use pipeline with condition:"prev-success" so a failed step blocks the next one
+  instead of continuing from a broken state.
+- Before cd-ing into a directory that might not already exist, mkdir -p it first —
+  don't assume a path from the user's request already exists.
+- Most actions above execute immediately, no confirmation — this app trusts your
+  judgment. Two things are NOT under your judgment and the app itself will always
+  force a human y/n regardless of what you decide: (1) anything matching a hard-coded
+  list of destructive shell patterns (rm -rf, git push --force, git reset --hard, DROP
+  TABLE, kubectl delete, sudo rm, and similar) in a run/run-await/write/paste/agent-send
+  payload; (2) closing a pane you (owner:ai in the workspace state above) created if a
+  human has typed into it since (human_touched:true in the workspace state). Panes you
+  created that are still human_touched:false can be closed by you at any time with no
+  confirmation. You do not need to check either of these conditions yourself — just emit
+  the action; the app enforces both regardless.
+- Ownership and cleanup: any pane listed with owner:ai is one you previously created. If
+  such a pane's task looks complete (idle, last command/agent turn finished, nothing
+  further pending) you may include a close action for it in ANY turn, even one about
+  something unrelated the user just asked — you don't need to wait to be asked. Don't
+  close owner:user panes on your own judgment; those are the user's own sessions.
+- broadcast/run-group/close-group/sequential/pipeline show the user a preview of every
+  command and ask for confirmation by default (configurable in Settings).
 - Refer to sessions by name. If names are similar, use the numeric id.
 - To coordinate multiple agents: chain agent-send calls; each blocks until the agent responds.`;
 }
@@ -187,23 +237,15 @@ function toWorkspaceAction(action: ParsedAction): WorkspaceAction {
   return action as WorkspaceAction;
 }
 
-async function dispatchImmediateAction(action: ParsedAction): Promise<string> {
+/** Dispatch a single AI-originated action through the shared gate used by every
+ *  other action source. WorkspaceActions.dispatch() (via isConfirmable/dispatchLeaf)
+ *  already decides per action type whether it runs immediately or needs a human
+ *  y/n — broadcast/run-group/close-group/sequential/pipeline per config, anything
+ *  destructive always, and closing a human-touched AI-owned pane always — so the
+ *  AI handler no longer needs its own separate immediate-vs-queued classification. */
+async function dispatchAiAction(action: ParsedAction): Promise<string> {
   const result = await workspaceActions.dispatch(toWorkspaceAction(action), { source: 'ai' });
   return result.message;
-}
-
-const IMMEDIATE_AI_ACTION_TYPES = new Set(['read', 'focus']);
-
-function isImmediateAiAction(action: ParsedAction): boolean {
-  return IMMEDIATE_AI_ACTION_TYPES.has(action.type);
-}
-
-async function queueAiActions(actions: ParsedAction[]): Promise<string> {
-  const workspaceActionsToQueue = actions.map(toWorkspaceAction);
-  const title = workspaceActionsToQueue.length === 1
-    ? actionDescription(workspaceActionsToQueue[0])
-    : `AI plan (${workspaceActionsToQueue.length} actions)`;
-  return workspaceActions.queueActionBatch(title, workspaceActionsToQueue, { source: 'ai' });
 }
 
 
@@ -250,18 +292,9 @@ class AIHandler {
         }
 
         const results: string[] = [];
-        const changingActions: ParsedAction[] = [];
         for (const a of actions) {
-          if (!isImmediateAiAction(a)) {
-            changingActions.push(a);
-            continue;
-          }
-          const result = await dispatchImmediateAction(a);
+          const result = await dispatchAiAction(a);
           if (result) results.push(result);
-        }
-
-        if (changingActions.length > 0) {
-          results.push(await queueAiActions(changingActions));
         }
 
         const resultText = results.join('\n').trim();
@@ -292,7 +325,7 @@ class AIHandler {
       case 'set-agent': {
         const activeId = sessionManager.getActivePaneId();
         if (activeId == null) return 'No active session.';
-        return dispatchImmediateAction({
+        return dispatchAiAction({
           type: 'set-agent',
           target: String(activeId),
           agentType: intent.agentType,
@@ -300,7 +333,7 @@ class AIHandler {
       }
 
       case 'focus':
-        return dispatchImmediateAction(intent as ParsedAction);
+        return dispatchAiAction(intent as ParsedAction);
 
       case 'help':
         return [
@@ -327,11 +360,13 @@ class AIHandler {
         ].join('\n');
 
       case 'read':
-        return dispatchImmediateAction(intent as ParsedAction);
+        return dispatchAiAction(intent as ParsedAction);
 
-      // State-changing actions are queued through the shared confirmation queue.
+      // Everything else goes through the same dispatch gate as the LLM path —
+      // WorkspaceActions decides per action type whether it runs immediately
+      // or needs confirmation.
       default:
-        return queueAiActions([intent as ParsedAction]);
+        return dispatchAiAction(intent as ParsedAction);
     }
   }
 }

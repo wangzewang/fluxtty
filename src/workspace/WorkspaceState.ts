@@ -74,7 +74,12 @@ export function formatWorkspaceContext(state: SerializedWorkspaceState = seriali
         ? ` exit:${pane.last_exit_code}⚠`
         : ` exit:0`
       : '';
-    return `  ${pane.id}. ${pane.name} [${pane.group}]${statusLabel} ${source} cwd:${pane.cwd}${tmux}${agent}${altScreen}${lastCmd}${exitCode}${active}`;
+    // owner=ai panes are ones the Workspace AI itself created; human_touched
+    // tracks whether a human has typed into it since (gates autonomous close).
+    const ownership = pane.owner === 'ai'
+      ? ` owner:ai${pane.human_touched ? ' human_touched:true' : ' human_touched:false'}`
+      : '';
+    return `  ${pane.id}. ${pane.name} [${pane.group}]${statusLabel} ${source} cwd:${pane.cwd}${tmux}${agent}${altScreen}${lastCmd}${exitCode}${ownership}${active}`;
   });
 
   if (lines.length === 0) return '  (no sessions)';

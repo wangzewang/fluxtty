@@ -31,6 +31,15 @@ function emit(event: string, payload: unknown) {
   }
 }
 
+// ── Config mock (isConfirmable reads always_confirm_broadcast/multi_step) ─────
+vi.mock('../config/ConfigContext', () => ({
+  configContext: {
+    get: vi.fn().mockReturnValue({
+      workspace_ai: { always_confirm_broadcast: true, always_confirm_multi_step: true },
+    }),
+  },
+}));
+
 // ── WorkspaceState mock (for `read` action) ───────────────────────────────────
 vi.mock('../workspace/WorkspaceState', () => ({
   getPaneContext: vi.fn().mockResolvedValue({
@@ -64,6 +73,8 @@ function makePane(overrides: Partial<PaneInfo> = {}): PaneInfo {
     last_command: null,
     last_exit_code: null,
     alternate_screen: false,
+    owner: 'user',
+    human_touched: false,
     ...overrides,
   };
 }
@@ -217,6 +228,41 @@ describe('agent-send action', () => {
   });
 });
 
+// ── agent-await-ready ────────────────────────────────────────────────────────
+
+describe('agent-await-ready action', () => {
+  it('waits successfully even when agent_type is still "none" (fresh launch, not yet detected)', async () => {
+    // Regression test: right after "run"-launching an agent CLI, the pane's
+    // agent_type is normally still 'none' — AgentDetector hasn't classified it
+    // from output yet. agent-await-ready must not hard-fail on that; it should
+    // still wait (falling back to the silence heuristic for an unrecognized type).
+    const pane = makePane({ id: 1, name: 'worker', agent_type: 'none' });
+    workspaceActions.configure(makePorts([pane]));
+
+    const promise = workspaceActions.dispatch({
+      type: 'agent-await-ready',
+      target: 'worker',
+      timeout_ms: 1_000,
+    });
+
+    await vi.waitFor(() => registeredListeners.has('pty-data-1'));
+    emit('pty-data-1', { pane_id: 1, data: 'Welcome to Claude Code\n' });
+
+    const result = await promise;
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain('ready');
+  });
+
+  it('fails when the session is not found', async () => {
+    workspaceActions.configure(makePorts([]));
+    const result = await workspaceActions.dispatch({
+      type: 'agent-await-ready',
+      target: 'missing',
+    });
+    expect(result.ok).toBe(false);
+  });
+});
+
 // ── pipeline ──────────────────────────────────────────────────────────────────
 
 describe('pipeline action', () => {
@@ -354,6 +400,131 @@ describe('pipeline action', () => {
     const result = await promise;
     expect(result).toContain('exit 0');
     expect(completionOrder).toEqual([1, 2]);
+  });
+});
+
+// ── destructive command guard ──────────────────────────────────────────────────
+
+describe('destructive command guard', () => {
+  it('queues a destructive run command for confirmation instead of executing it', async () => {
+    const pane = makePane({ id: 1, name: 'ops' });
+    const ports = makePorts([pane]);
+    workspaceActions.configure(ports);
+
+    const queued = await workspaceActions.dispatch({ type: 'run', target: 'ops', cmd: 'rm -rf /tmp/build' });
+    expect(queued.message).toContain('Confirm?');
+    expect((ports as WorkspaceActionPorts & { _writes: Array<[number, string]> })._writes).toEqual([]);
+
+    await planExecutor.handleConfirm('y');
+    expect((ports as WorkspaceActionPorts & { _writes: Array<[number, string]> })._writes)
+      .toContainEqual([1, 'rm -rf /tmp/build\r']);
+  });
+
+  it('does not queue a non-destructive run command', async () => {
+    const pane = makePane({ id: 1, name: 'ops' });
+    const ports = makePorts([pane]);
+    workspaceActions.configure(ports);
+
+    const result = await workspaceActions.dispatch({ type: 'run', target: 'ops', cmd: 'npm test' });
+    expect(result.message).not.toContain('Confirm?');
+    expect((ports as WorkspaceActionPorts & { _writes: Array<[number, string]> })._writes)
+      .toContainEqual([1, 'npm test\r']);
+  });
+
+  it('queues a destructive agent-send message for confirmation', async () => {
+    const pane = makePane({ id: 1, name: 'agent', agent_type: 'claude' });
+    const ports = makePorts([pane]);
+    workspaceActions.configure(ports);
+
+    const queued = await workspaceActions.dispatch({
+      type: 'agent-send',
+      target: 'agent',
+      message: 'run git push --force to origin main',
+    });
+    expect(queued.message).toContain('Confirm?');
+    expect((ports as WorkspaceActionPorts & { _writes: Array<[number, string]> })._writes).toEqual([]);
+  });
+
+  it('destructive commands are intercepted regardless of source', async () => {
+    const pane = makePane({ id: 1, name: 'ops' });
+    const ports = makePorts([pane]);
+    workspaceActions.configure(ports);
+
+    const queued = await workspaceActions.dispatch(
+      { type: 'run', target: 'ops', cmd: 'git reset --hard HEAD~5' },
+      { source: 'keyboard' },
+    );
+    expect(queued.message).toContain('Confirm?');
+  });
+});
+
+// ── close action / AI pane ownership gating ────────────────────────────────────
+
+describe('close action ownership gating', () => {
+  it('closes a user-owned pane immediately regardless of human_touched', async () => {
+    const pane = makePane({ id: 1, name: 'shell', owner: 'user', human_touched: true });
+    const ports = makePorts([pane]);
+    workspaceActions.configure(ports);
+
+    const result = await workspaceActions.dispatch({ type: 'close', target: 'shell' });
+    expect(result.message).not.toContain('Confirm?');
+    expect(ports.layout.closePane).toHaveBeenCalledWith(1);
+  });
+
+  it('closes an AI-owned, untouched pane immediately', async () => {
+    const pane = makePane({ id: 1, name: 'worker', owner: 'ai', human_touched: false });
+    const ports = makePorts([pane]);
+    workspaceActions.configure(ports);
+
+    const result = await workspaceActions.dispatch({ type: 'close', target: 'worker' }, { source: 'ai' });
+    expect(result.message).not.toContain('Confirm?');
+    expect(ports.layout.closePane).toHaveBeenCalledWith(1);
+  });
+
+  it('requires confirmation to close an AI-owned pane a human has typed into', async () => {
+    const pane = makePane({ id: 1, name: 'worker', owner: 'ai', human_touched: true });
+    const ports = makePorts([pane]);
+    workspaceActions.configure(ports);
+
+    const queued = await workspaceActions.dispatch({ type: 'close', target: 'worker' }, { source: 'ai' });
+    expect(queued.message).toContain('Confirm?');
+    expect(ports.layout.closePane).not.toHaveBeenCalled();
+
+    await planExecutor.handleConfirm('y');
+    expect(ports.layout.closePane).toHaveBeenCalledWith(1);
+  });
+
+  it('close idle closes untouched panes immediately and defers touched AI panes', async () => {
+    const safePane = makePane({ id: 1, name: 'safe', status: 'idle', owner: 'ai', human_touched: false });
+    const touchedPane = makePane({ id: 2, name: 'touched', status: 'idle', owner: 'ai', human_touched: true });
+    const ports = makePorts([safePane, touchedPane]);
+    workspaceActions.configure(ports);
+
+    const result = await workspaceActions.dispatch({ type: 'close', target: 'idle' }, { source: 'ai' });
+    expect(result.message).toContain('Closed 1 idle session(s)');
+    expect(result.message).toContain('awaiting confirmation');
+    expect(ports.layout.closePane).toHaveBeenCalledWith(1);
+    expect(ports.layout.closePane).not.toHaveBeenCalledWith(2);
+  });
+});
+
+// ── new action / ownership ──────────────────────────────────────────────────────
+
+describe('new action ownership', () => {
+  it('marks a pane spawned by the AI as owner: ai', async () => {
+    const ports = makePorts([]);
+    workspaceActions.configure(ports);
+
+    await workspaceActions.dispatch({ type: 'new', name: 'worker' }, { source: 'ai' });
+    expect(ports.layout.spawnPane).toHaveBeenCalledWith(expect.objectContaining({ owner: 'ai' }));
+  });
+
+  it('marks a pane spawned by the user as owner: user', async () => {
+    const ports = makePorts([]);
+    workspaceActions.configure(ports);
+
+    await workspaceActions.dispatch({ type: 'new' }, { source: 'ui' });
+    expect(ports.layout.spawnPane).toHaveBeenCalledWith(expect.objectContaining({ owner: 'user' }));
   });
 });
 

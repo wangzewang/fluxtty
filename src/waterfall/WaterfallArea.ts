@@ -598,7 +598,7 @@ export class WaterfallArea {
     return this.rowEls[rowIndex];
   }
 
-  async spawnPane(opts: { newRow: boolean; group?: string; cwd?: string; tmuxSession?: string | null; targetRow?: number; afterPaneId?: number; atBottom?: boolean }): Promise<TerminalPane | null> {
+  async spawnPane(opts: { newRow: boolean; group?: string; cwd?: string; tmuxSession?: string | null; targetRow?: number; afterPaneId?: number; atBottom?: boolean; owner?: 'user' | 'ai' }): Promise<TerminalPane | null> {
     const paneId = this.nextPaneId++;
 
     // Inherit cwd from active pane for both new terminals and splits (unless explicitly overridden)
@@ -637,6 +637,7 @@ export class WaterfallArea {
           rows: estRows,
           new_row: opts.newRow,
           target_row: targetRowIndex,
+          owner: opts.owner ?? 'user',
         }
       });
     } catch (e) {
@@ -661,6 +662,8 @@ export class WaterfallArea {
       last_command: null,
       last_exit_code: null,
       alternate_screen: false,
+      owner: opts.owner ?? 'user',
+      human_touched: false,
     };
 
     const pane = new TerminalPane(info, (id, prevRow) => this.handlePaneClose(id, prevRow));
